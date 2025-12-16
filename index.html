@@ -13,17 +13,14 @@
             background-color: #050510;
             font-family: 'Courier New', Courier, monospace;
             color: white;
-            touch-action: none; /* Prevents pull-to-refresh on mobile */
+            touch-action: none;
         }
-        canvas {
-            display: block;
-        }
+        canvas { display: block; }
+        
         #ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
             display: flex;
             flex-direction: column;
@@ -31,68 +28,103 @@
             justify-content: center;
             text-align: center;
         }
-        #lobby {
-            background: rgba(0, 0, 0, 0.85);
-            padding: 20px;
+        
+        .panel {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 25px;
             border-radius: 10px;
             pointer-events: auto;
             border: 2px solid #00ffcc;
             max-width: 90%;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
         }
-        h1 { margin: 0 0 10px 0; color: #00ffcc; text-transform: uppercase; }
-        p { font-size: 14px; color: #ccc; }
-        #qrcode { margin: 20px auto; background: white; padding: 10px; display: inline-block; }
+
+        h1 { margin: 0 0 15px 0; color: #00ffcc; text-transform: uppercase; letter-spacing: 2px; }
+        h2 { font-size: 16px; color: #ff0055; margin-bottom: 15px; }
+        p { font-size: 14px; color: #ccc; margin-bottom: 15px; line-height: 1.4; }
+        
+        #qrcode { 
+            margin: 15px auto; 
+            background: white; 
+            padding: 10px; 
+            display: inline-block; 
+            border-radius: 4px;
+        }
+
         .hidden { display: none !important; }
+
         #score-board {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 20px;
-            font-weight: bold;
-            color: white;
-            z-index: 10;
+            position: absolute; top: 10px; left: 10px;
+            font-size: 20px; font-weight: bold; color: white; z-index: 10;
+            text-shadow: 0 0 5px #00ffcc;
         }
+        
         #status {
-            position: absolute;
-            bottom: 10px;
-            width: 100%;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
+            position: absolute; bottom: 10px; width: 100%;
+            text-align: center; font-size: 12px; color: #666;
         }
+
         .btn {
-            background: #ff0055;
-            color: white;
-            border: none;
+            background: transparent;
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
             padding: 15px 30px;
             font-size: 18px;
             border-radius: 5px;
-            margin-top: 10px;
+            margin: 10px 0;
             cursor: pointer;
+            width: 100%;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.2s;
         }
+        .btn:active { background: #00ffcc; color: black; }
+        
+        .btn-primary {
+            background: #ff0055;
+            border-color: #ff0055;
+            color: white;
+        }
+        .btn-primary:active { background: #ff3377; }
+
     </style>
 </head>
 <body>
 
     <div id="score-board">SCORE: 0</div>
-    <div id="status">Initializing...</div>
+    <div id="status">Ready</div>
 
     <div id="ui-layer">
-        <div id="lobby">
+        
+        <!-- MAIN MENU -->
+        <div id="main-menu" class="panel">
             <h1>Alien Invasion</h1>
-            <div id="host-ui">
-                <p>Scan to join Player 1 (Red)</p>
+            <p>Defend Earth from the alien swarm.</p>
+            <button class="btn btn-primary" onclick="startSinglePlayer()">SINGLE PLAYER</button>
+            <button class="btn" onclick="setupMultiplayerUI()">MULTIPLAYER (CO-OP)</button>
+        </div>
+
+        <!-- MULTIPLAYER LOBBY -->
+        <div id="lobby" class="panel hidden">
+            <h1>Co-Op Lobby</h1>
+            
+            <div id="host-ui" class="hidden">
+                <p>Scan this QR code with a second device to join.</p>
                 <div id="qrcode"></div>
-                <p>Waiting for Player 2...</p>
+                <p style="color: #ffff00;">Waiting for Player 2...</p>
+                <button class="btn" onclick="location.reload()">CANCEL</button>
             </div>
+
             <div id="client-ui" class="hidden">
                 <p>Connecting to Host...</p>
             </div>
-            <div id="game-over-ui" class="hidden">
-                <h1 style="color: #ff0055;">GAME OVER</h1>
-                <p id="final-score">Score: 0</p>
-                <button class="btn" onclick="location.reload()">RESTART</button>
-            </div>
+        </div>
+
+        <!-- GAME OVER -->
+        <div id="game-over-ui" class="panel hidden">
+            <h1 style="color: #ff0055;">GAME OVER</h1>
+            <p id="final-score">Score: 0</p>
+            <button class="btn btn-primary" onclick="location.href = location.pathname">MAIN MENU</button>
         </div>
     </div>
 
@@ -100,13 +132,12 @@
 
 <script>
 /**
- * GAME CONFIGURATION & STATE
+ * ENGINE SETUP
  */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let width, height;
 
-// Resize handling
 function resize() {
     width = window.innerWidth;
     height = window.innerHeight;
@@ -116,92 +147,124 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// Network State
-let peer = null;
-let conn = null;
-const urlParams = new URLSearchParams(window.location.search);
-const hostIdParam = urlParams.get('id');
-const isHost = !hostIdParam;
-let isConnected = false;
-
-// Game State
+// --- GAME STATE ---
 let gameRunning = false;
+let gameMode = 'none'; // 'single' or 'multi'
 let score = 0;
 let frames = 0;
 
 // Entities
 const players = {
-    p1: { x: 0, y: 0, color: '#ff4d4d', active: true, hp: 3, weaponLevel: 1 }, // Host
-    p2: { x: 0, y: 0, color: '#4d4dff', active: false, hp: 3, weaponLevel: 1 } // Client
+    p1: { x: 0, y: 0, color: '#ff4d4d', active: true, hp: 3, weaponLevel: 1 }, // Local/Host
+    p2: { x: 0, y: 0, color: '#4d4dff', active: false, hp: 3, weaponLevel: 1 } // Remote/Client
 };
 let bullets = [];
 let enemies = [];
-let particles = [];
 let powerups = [];
 
-// Input State
-const input = { x: 0, y: 0, firing: false }; // Local input
+// Input
+const input = { x: 0, y: 0, firing: false };
+
+// --- NETWORKING STATE ---
+let peer = null;
+let conn = null;
+const urlParams = new URLSearchParams(window.location.search);
+const joinId = urlParams.get('id');
+let isHost = true; 
+let isConnected = false;
 
 /**
- * NETWORKING (PeerJS)
+ * INITIALIZATION FLOW
  */
-function initNetwork() {
-    peer = new Peer(null, { debug: 2 });
+window.onload = function() {
+    // If ID exists in URL, we are a joiner, skip menu
+    if (joinId) {
+        startMultiplayerClient();
+    }
+};
 
+function startSinglePlayer() {
+    gameMode = 'single';
+    isHost = true;
+    document.getElementById('main-menu').classList.add('hidden');
+    startGame();
+}
+
+function setupMultiplayerUI() {
+    gameMode = 'multi';
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('lobby').classList.remove('hidden');
+    document.getElementById('host-ui').classList.remove('hidden');
+    initNetworkHost();
+}
+
+function startMultiplayerClient() {
+    gameMode = 'multi';
+    isHost = false;
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('lobby').classList.remove('hidden');
+    document.getElementById('client-ui').classList.remove('hidden');
+    initNetworkClient();
+}
+
+/**
+ * PEERJS NETWORKING
+ */
+function initNetworkHost() {
+    peer = new Peer(null, { debug: 1 });
     peer.on('open', (id) => {
-        document.getElementById('status').innerText = isHost ? "Hosting ID: " + id : "Connected as Client";
-        
-        if (isHost) {
-            // Generate QR Code
-            const gameUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${id}`;
-            new QRCode(document.getElementById("qrcode"), {
-                text: gameUrl,
-                width: 180,
-                height: 180
-            });
-            
-            // Listen for connection
-            peer.on('connection', (c) => {
-                conn = c;
-                setupConnection();
-                players.p2.active = true;
-                startGame();
-            });
-        } else {
-            // Connect to host
-            document.getElementById('host-ui').classList.add('hidden');
-            document.getElementById('client-ui').classList.remove('hidden');
-            conn = peer.connect(hostIdParam);
-            setupConnection();
-        }
+        // Generate QR Code
+        const gameUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${id}`;
+        new QRCode(document.getElementById("qrcode"), {
+            text: gameUrl, width: 180, height: 180
+        });
+    });
+
+    peer.on('connection', (c) => {
+        conn = c;
+        setupConnectionEvents();
+        players.p2.active = true; // Activate P2
+        document.getElementById('lobby').classList.add('hidden');
+        startGame();
     });
 }
 
-function setupConnection() {
+function initNetworkClient() {
+    peer = new Peer(null, { debug: 1 });
+    peer.on('open', () => {
+        conn = peer.connect(joinId);
+        setupConnectionEvents();
+    });
+}
+
+function setupConnectionEvents() {
     conn.on('open', () => {
         isConnected = true;
-        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('status').innerText = "Connected!";
         
-        // Data Listener
+        if(!isHost) {
+            document.getElementById('lobby').classList.add('hidden');
+            startGame();
+        }
+
         conn.on('data', (data) => {
             if (isHost) {
-                // Host receives input from Client
+                // Host receives Input from Client
                 if (data.type === 'input') {
-                    players.p2.x = data.x * width; // Normalize back to screen size
+                    players.p2.x = data.x * width;
                     players.p2.y = data.y * height;
                 }
             } else {
-                // Client receives Game State from Host
+                // Client receives State from Host
                 if (data.type === 'state') {
                     players.p1.x = data.p1.x * width;
                     players.p1.y = data.p1.y * height;
                     players.p1.active = data.p1.active;
                     
-                    players.p2.x = data.p2.x * width; // Sync own position for smoothness
+                    players.p2.x = data.p2.x * width;
                     players.p2.y = data.p2.y * height;
                     players.p2.active = data.p2.active;
 
-                    // Sync lists (simplified for bandwidth)
                     bullets = data.bullets; 
                     enemies = data.enemies;
                     powerups = data.powerups;
@@ -211,76 +274,63 @@ function setupConnection() {
             }
         });
     });
+    
+    conn.on('close', () => {
+        alert("Connection lost. Returning to menu.");
+        location.href = location.pathname;
+    });
 }
 
 /**
- * INPUT HANDLING (Touch)
- */
-canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    input.x = touch.clientX;
-    input.y = touch.clientY - 50; // Offset slightly above finger
-    input.firing = true;
-}, { passive: false });
-
-canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    input.x = touch.clientX;
-    input.y = touch.clientY - 50;
-    input.firing = true;
-}, { passive: false });
-
-canvas.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    input.firing = false;
-});
-
-// Fallback for desktop testing
-canvas.addEventListener('mousemove', (e) => {
-    if(e.buttons === 1) {
-        input.x = e.clientX;
-        input.y = e.clientY;
-        input.firing = true;
-    } else {
-        input.firing = false;
-    }
-});
-
-
-/**
- * GAME LOGIC
+ * GAME ENGINE
  */
 function startGame() {
     gameRunning = true;
-    // Reset positions
     players.p1.x = width / 2;
     players.p1.y = height - 100;
-    if(!isHost) {
-        // Client starts logic instantly, but relies on host for true state
-        document.getElementById('lobby').classList.add('hidden');
+    
+    // In Single player, ensure P2 is dead
+    if (gameMode === 'single') {
+        players.p2.active = false;
+        players.p2.x = -1000;
     }
+    
     loop();
 }
 
 function showGameOver() {
     gameRunning = false;
     document.getElementById('ui-layer').style.pointerEvents = 'auto';
-    document.getElementById('lobby').classList.remove('hidden');
-    document.getElementById('host-ui').classList.add('hidden');
-    document.getElementById('client-ui').classList.add('hidden');
     document.getElementById('game-over-ui').classList.remove('hidden');
     document.getElementById('final-score').innerText = "Final Score: " + score;
 }
 
+// Input Handling
+canvas.addEventListener('touchmove', handleInput, { passive: false });
+canvas.addEventListener('touchstart', handleInput, { passive: false });
+canvas.addEventListener('touchend', () => input.firing = false);
+canvas.addEventListener('mousemove', (e) => {
+    if(e.buttons === 1) {
+        input.x = e.clientX;
+        input.y = e.clientY;
+        input.firing = true;
+    } else input.firing = false;
+});
+
+function handleInput(e) {
+    e.preventDefault();
+    const t = e.touches[0];
+    input.x = t.clientX;
+    input.y = t.clientY - 50;
+    input.firing = true;
+}
+
+// Logic Helpers
 function spawnEnemy() {
     const size = 30 + Math.random() * 20;
     enemies.push({
         x: Math.random() * (width - size),
-        y: -size,
-        w: size,
-        h: size,
+        y: -size, w: size, h: size,
         hp: Math.floor(1 + score / 500),
         speed: 2 + Math.random() * 2 + (score/2000)
     });
@@ -295,20 +345,18 @@ function spawnPowerup(x, y) {
     });
 }
 
-function fireBullet(playerKey) {
-    const p = players[playerKey];
+function fireBullet(pkey) {
+    const p = players[pkey];
     if (!p.active) return;
     
-    // Simple cooldown based on frame check inside update is handled by randomness or timer usually, 
-    // but here we just fire every 10 frames to keep code short
     if (frames % 10 === 0) {
+        const velY = -10;
         if (p.weaponLevel === 1) {
-            bullets.push({ x: p.x, y: p.y - 20, vx: 0, vy: -10, color: p.color, owner: playerKey });
+            bullets.push({ x: p.x, y: p.y - 20, vx: 0, vy: velY, color: p.color });
         } else {
-            // Spread shot
-            bullets.push({ x: p.x, y: p.y - 20, vx: 0, vy: -10, color: p.color, owner: playerKey });
-            bullets.push({ x: p.x, y: p.y - 20, vx: -3, vy: -9, color: p.color, owner: playerKey });
-            bullets.push({ x: p.x, y: p.y - 20, vx: 3, vy: -9, color: p.color, owner: playerKey });
+            bullets.push({ x: p.x, y: p.y - 20, vx: 0, vy: velY, color: p.color });
+            bullets.push({ x: p.x, y: p.y - 20, vx: -3, vy: velY*0.9, color: p.color });
+            bullets.push({ x: p.x, y: p.y - 20, vx: 3, vy: velY*0.9, color: p.color });
         }
     }
 }
@@ -317,111 +365,96 @@ function update() {
     if (!gameRunning) return;
     frames++;
 
-    // --- HOST LOGIC ---
+    // HOST (or Single Player) Logic
     if (isHost) {
-        // Update Player 1 (Host) Input
+        // Player 1 movement
         if (input.firing) {
             players.p1.x += (input.x - players.p1.x) * 0.2;
             players.p1.y += (input.y - players.p1.y) * 0.2;
             fireBullet('p1');
         }
 
-        // Auto-fire for P2 if connected
-        if (players.p2.active && frames % 10 === 0) fireBullet('p2');
+        // Player 2 fire (Movement handled by network data)
+        if (gameMode === 'multi' && players.p2.active && frames % 10 === 0) {
+            fireBullet('p2');
+        }
 
-        // Spawn Enemies
+        // Spawners
         if (frames % 60 === 0) spawnEnemy();
 
-        // Update Bullets
-        bullets = bullets.filter(b => b.y > -50 && b.y < height && b.x > -50 && b.x < width + 50);
-        bullets.forEach(b => {
-            b.x += b.vx;
-            b.y += b.vy;
-        });
+        // Physics: Bullets
+        bullets = bullets.filter(b => b.y > -50 && b.y < height && b.x > -50 && b.x < width+50);
+        bullets.forEach(b => { b.x += b.vx; b.y += b.vy; });
 
-        // Update Enemies
-        enemies.forEach((e, ei) => {
+        // Physics: Powerups
+        powerups.forEach(p => {
+            p.y += p.vy;
+            ['p1', 'p2'].forEach(pk => {
+                const ply = players[pk];
+                if (ply.active && Math.hypot(ply.x - p.x, ply.y - p.y) < 30) {
+                    ply.weaponLevel = 2;
+                    p.y = height + 100;
+                    setTimeout(() => ply.weaponLevel = 1, 5000);
+                }
+            });
+        });
+        powerups = powerups.filter(p => p.y < height);
+
+        // Physics: Enemies
+        enemies.forEach(e => {
             e.y += e.speed;
             
-            // Collision: Enemy vs Bullets
-            bullets.forEach((b, bi) => {
+            // Hit by bullet
+            bullets.forEach(b => {
                 if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
-                    e.hp--;
-                    // Remove bullet (mark for delete)
-                    b.y = -100; 
-                    
+                    e.hp--; b.y = -100; // Remove bullet
                     if (e.hp <= 0) {
-                        e.y = height + 100; // Kill enemy
-                        score += 10;
-                        // Chance for powerup
+                        e.y = height + 100; score += 10;
                         if (Math.random() < 0.1) spawnPowerup(e.x + e.w/2, e.y);
                     }
                 }
             });
 
-            // Collision: Enemy vs Players
+            // Hit Player
             ['p1', 'p2'].forEach(pk => {
                 const p = players[pk];
                 if(p.active && Math.abs(p.x - (e.x + e.w/2)) < 30 && Math.abs(p.y - (e.y + e.h/2)) < 30) {
-                    // Game Over logic
                    showGameOver();
                    if(isConnected) conn.send({ type: 'state', gameOver: true });
                 }
             });
         });
 
-        // Cleanup dead entities
         enemies = enemies.filter(e => e.y < height);
         bullets = bullets.filter(b => b.y !== -100);
 
-        // Powerups
-        powerups.forEach(p => {
-            p.y += p.vy;
-            ['p1', 'p2'].forEach(pk => {
-                const ply = players[pk];
-                if (ply.active && Math.abs(ply.x - p.x) < 30 && Math.abs(ply.y - p.y) < 30) {
-                    ply.weaponLevel = 2; // Upgrade weapon
-                    p.y = height + 100; // Remove powerup
-                    setTimeout(() => ply.weaponLevel = 1, 5000); // Reset after 5s
-                }
-            });
-        });
-        powerups = powerups.filter(p => p.y < height);
-
-        // Network Sync (Host -> Client)
-        if (isConnected) {
-            // Send normalized coordinates (0-1) to handle different screen sizes
+        // Sync to Client
+        if (gameMode === 'multi' && isConnected) {
             conn.send({
                 type: 'state',
                 score: score,
                 p1: { x: players.p1.x / width, y: players.p1.y / height, active: players.p1.active },
                 p2: { x: players.p2.x / width, y: players.p2.y / height, active: players.p2.active },
-                bullets: bullets, // Sending full objects (optimize in prod)
+                bullets: bullets,
                 enemies: enemies,
                 powerups: powerups,
                 gameOver: false
             });
         }
     } 
-    
-    // --- CLIENT LOGIC ---
+    // CLIENT Logic
     else {
-        // Client sends input to Host
-        if (input.firing) {
-            if (isConnected) {
-                // Send normalized input position
-                conn.send({ type: 'input', x: input.x / width, y: input.y / height });
-            }
+        if (input.firing && isConnected) {
+            conn.send({ type: 'input', x: input.x / width, y: input.y / height });
         }
     }
 }
 
 function draw() {
-    // Clear screen
     ctx.fillStyle = '#050510';
     ctx.fillRect(0, 0, width, height);
 
-    // Draw Stars (Simple background effect)
+    // Stars
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     for(let i=0; i<20; i++) {
         const sx = (Date.now()/5 + i*100) % width;
@@ -429,17 +462,12 @@ function draw() {
         ctx.fillRect(sx, sy, 2, 2);
     }
 
-    // Draw Entities
-    if(isHost || (!isHost && isConnected)) {
-        
+    if(gameRunning || isHost === false) { // Draw if game running or if we are client waiting for data
         // Powerups
         powerups.forEach(p => {
             ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'black';
-            ctx.fillText("P", p.x-4, p.y+4);
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'black'; ctx.fillText("P", p.x-4, p.y+4);
         });
 
         // Bullets
@@ -449,14 +477,13 @@ function draw() {
         });
 
         // Enemies
-        ctx.fillStyle = '#00ff00';
+        ctx.fillStyle = '#33cc33';
         enemies.forEach(e => {
-            // Draw Alien shape (simple rect with eyes)
-            ctx.fillStyle = '#33cc33';
             ctx.fillRect(e.x, e.y, e.w, e.h);
             ctx.fillStyle = 'black';
-            ctx.fillRect(e.x + 5, e.y + 10, 5, 5); // Eye L
-            ctx.fillRect(e.x + e.w - 10, e.y + 10, 5, 5); // Eye R
+            ctx.fillRect(e.x + 5, e.y + 10, 5, 5);
+            ctx.fillRect(e.x + e.w - 10, e.y + 10, 5, 5);
+            ctx.fillStyle = '#33cc33';
         });
 
         // Players
@@ -464,14 +491,13 @@ function draw() {
             const p = players[pk];
             if (p.active) {
                 ctx.fillStyle = p.color;
-                // Draw Ship (Triangle)
                 ctx.beginPath();
                 ctx.moveTo(p.x, p.y - 20);
                 ctx.lineTo(p.x - 20, p.y + 20);
                 ctx.lineTo(p.x + 20, p.y + 20);
                 ctx.fill();
                 
-                // Engine flame
+                // Flame
                 ctx.fillStyle = 'orange';
                 ctx.beginPath();
                 ctx.moveTo(p.x - 10, p.y + 20);
@@ -490,9 +516,6 @@ function loop() {
     draw();
     if(gameRunning) requestAnimationFrame(loop);
 }
-
-// Start Init
-initNetwork();
 
 </script>
 </body>
