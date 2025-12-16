@@ -3,32 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Invaders</title>
+    <title>NEON VANGUARD: Cyber Warfare</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
         :root {
-            --p1: #00f3ff;
-            --p2: #ff0055;
-            --p3: #ffff00;
-            --p4: #00ff66;
+            --c-p1: #00f0ff; /* Cyan */
+            --c-p2: #ff0055; /* Pink */
+            --c-p3: #ffee00; /* Yellow */
+            --c-p4: #00ff66; /* Green */
+            --c-enemy: #ff3333;
             --bg: #050508;
         }
 
         * {
             box-sizing: border-box;
-            touch-action: none; /* Critical for mobile game controls */
+            touch-action: none;
             user-select: none;
             -webkit-user-select: none;
-            outline: none;
+            font-family: 'Orbitron', sans-serif;
         }
 
         body {
             margin: 0;
             background-color: var(--bg);
             overflow: hidden;
-            font-family: 'Teko', sans-serif;
             color: white;
         }
 
@@ -38,106 +38,84 @@
             height: 100%;
         }
 
-        /* --- HUD (Top of Screen) --- */
+        /* UI LAYERS */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            display: flex; flex-direction: column;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
 
-        .hud-top {
-            padding: 10px 15px;
+        .hud-bar {
+            padding: 15px;
             background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
             display: flex; justify-content: space-between; align-items: flex-start;
         }
 
-        .score-box { font-size: 2rem; line-height: 1; color: #fff; text-shadow: 0 0 10px #fff; }
-        .wave-box { font-size: 1.2rem; color: #888; }
-        
-        /* Health Bar */
-        .hp-container {
-            position: absolute; top: 50px; left: 15px; right: 15px;
-            height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px;
+        .score-display {
+            font-size: 2rem; color: #fff; text-shadow: 0 0 10px var(--c-p1);
         }
-        .hp-bar {
-            width: 100%; height: 100%; background: var(--p1);
-            border-radius: 3px; transition: width 0.2s;
-            box-shadow: 0 0 8px var(--p1);
+        
+        .hp-wrapper {
+            position: absolute; top: 60px; left: 20px; right: 20px;
+            height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;
+        }
+        .hp-fill {
+            height: 100%; background: var(--c-p1); width: 100%;
+            box-shadow: 0 0 10px var(--c-p1); transition: width 0.2s;
         }
 
-        /* --- CONTROLS (Floating Joysticks) --- */
-        .joystick {
-            position: absolute;
-            width: 80px; height: 80px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            pointer-events: none; /* Touches pass through to the handler */
-            display: none; /* Hidden until touched */
-            transform: translate(-50%, -50%);
-            z-index: 50;
+        /* JOYSTICKS */
+        .joystick-guide {
+            position: absolute; width: 100px; height: 100px;
+            border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; display: none;
         }
-        
         .joystick-thumb {
-            position: absolute; top: 50%; left: 50%;
-            width: 40px; height: 40px;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px rgba(255,255,255,0.5);
+            position: absolute; width: 50px; height: 50px;
+            background: rgba(255,255,255,0.4); border-radius: 50%;
+            transform: translate(-50%, -50%); box-shadow: 0 0 15px white;
         }
 
-        /* Weapon Switch Button */
-        #weapon-btn {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 60px; height: 60px;
-            background: rgba(0,0,0,0.6);
-            border: 2px solid var(--p1);
-            border-radius: 50%;
-            color: var(--p1);
-            font-size: 24px;
-            display: flex; align-items: center; justify-content: center;
-            pointer-events: auto;
-            z-index: 100;
-        }
-
-        /* --- MENUS --- */
+        /* MENUS */
         .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 8, 0.98);
+            background: rgba(8, 8, 12, 0.95);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 200;
-            padding: 20px;
-            text-align: center;
+            z-index: 100; backdrop-filter: blur(5px);
+            transition: opacity 0.5s;
         }
-        .hidden { display: none !important; }
+        .hidden { opacity: 0; pointer-events: none; }
 
         h1 {
-            font-size: 4rem; margin: 0;
-            background: linear-gradient(to bottom, var(--p1), var(--p2));
+            font-size: 3.5rem; line-height: 1; margin: 0 0 20px 0; text-align: center;
+            background: linear-gradient(to right, var(--c-p1), var(--c-p2));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-transform: uppercase;
+            text-transform: uppercase; filter: drop-shadow(0 0 20px rgba(0,240,255,0.5));
         }
 
-        .btn {
-            width: 100%; max-width: 300px;
-            margin: 10px 0; padding: 15px;
-            font-size: 1.5rem; font-family: inherit; font-weight: bold;
-            background: transparent; color: var(--p1);
-            border: 2px solid var(--p1); border-radius: 5px;
-            cursor: pointer;
+        .btn-group { display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 300px; }
+        
+        button {
+            background: transparent; border: 2px solid var(--c-p1); color: var(--c-p1);
+            padding: 15px; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px;
+            cursor: pointer; transition: 0.2s; position: relative; overflow: hidden;
         }
-        .btn:active { background: var(--p1); color: #000; }
+        button:active { background: var(--c-p1); color: #000; transform: scale(0.98); }
+        
+        .difficulty-selector {
+            display: flex; gap: 10px; margin-bottom: 20px;
+        }
+        .diff-btn {
+            flex: 1; font-size: 0.9rem; padding: 10px; border-color: #555; color: #555;
+        }
+        .diff-btn.active {
+            border-color: var(--c-p3); color: var(--c-p3); box-shadow: 0 0 15px rgba(255,238,0,0.3);
+        }
 
-        .lobby-panel {
-            width: 100%; max-width: 350px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px; padding: 15px; margin: 20px 0;
-        }
-        .player-row {
-            display: flex; justify-content: space-between;
-            padding: 10px; border-bottom: 1px solid #333;
-        }
-        .ready { color: var(--p4); font-weight: bold; }
+        /* LOBBY */
+        #qr-box { background: white; padding: 10px; border-radius: 10px; margin: 15px 0; }
+        .lobby-status { color: #888; margin-top: 10px; font-size: 0.9rem; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%{opacity:0.5} 50%{opacity:1} 100%{opacity:0.5} }
 
     </style>
 </head>
@@ -145,179 +123,232 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <!-- UI LAYER -->
+    <!-- HUD -->
     <div id="ui-layer" class="hidden">
-        <div class="hud-top">
-            <div class="score-box" id="score">0</div>
-            <div class="wave-box" id="wave">WAVE 1</div>
+        <div class="hud-bar">
+            <div class="score-display" id="scoreEl">0</div>
+            <div style="text-align:right">
+                <div id="waveEl" style="color:var(--c-p3)">WAVE 1</div>
+                <div id="weaponEl" style="font-size:0.8rem; color:#aaa">PULSE RIFLE</div>
+            </div>
         </div>
-        <div class="hp-container"><div class="hp-bar" id="hpBar"></div></div>
+        <div class="hp-wrapper"><div class="hp-fill" id="hpEl"></div></div>
         
-        <!-- Center Button to Switch Weapons -->
-        <div id="weapon-btn">⚡</div>
-
-        <!-- Visual Joysticks (Created dynamically) -->
-        <div id="joy-move" class="joystick"><div class="joystick-thumb"></div></div>
-        <div id="joy-aim" class="joystick" style="border-color:rgba(255,0,85,0.5)"><div class="joystick-thumb" style="background:rgba(255,0,85,0.5)"></div></div>
+        <!-- Virtual Joysticks -->
+        <div id="joy-l" class="joystick-guide"><div class="joystick-thumb"></div></div>
+        <div id="joy-r" class="joystick-guide" style="border-color:var(--c-p2)"><div class="joystick-thumb" style="background:rgba(255,0,85,0.4)"></div></div>
     </div>
 
     <!-- MAIN MENU -->
     <div id="menu-screen" class="screen">
-        <h1>NEON<br>STRIKER</h1>
-        <p style="color:#666; margin-bottom:30px">PORTRAIT EDITION</p>
-        <button class="btn" onclick="startSingle()">SINGLE PLAYER</button>
-        <button class="btn" onclick="setupHost()">HOST MULTIPLAYER</button>
-        <div id="join-msg" style="margin-top:20px; color:#aaa; font-size:12px">To join, scan Host QR</div>
+        <h1>NEON<br>VANGUARD</h1>
+        
+        <div class="difficulty-selector">
+            <button class="diff-btn" onclick="setDiff('easy')">CADET</button>
+            <button class="diff-btn active" onclick="setDiff('normal')">VETERAN</button>
+            <button class="diff-btn" onclick="setDiff('hard')">LORD</button>
+        </div>
+
+        <div class="btn-group">
+            <button onclick="startGame('solo')">SINGLE PLAYER</button>
+            <button onclick="setupHost()">HOST SQUAD</button>
+        </div>
+        <p style="margin-top:20px; font-size:0.8rem; color:#666">SCAN HOST QR TO JOIN</p>
     </div>
 
     <!-- LOBBY -->
     <div id="lobby-screen" class="screen hidden">
-        <h2>LOBBY</h2>
-        <div style="background:white; padding:10px; border-radius:8px;">
-            <img id="qr-img" width="180" height="180">
+        <h2>MISSION CONTROL</h2>
+        <div id="qr-box"><img id="qr-img" width="180" height="180"></div>
+        <div class="lobby-status" id="lobby-msg">Waiting for pilots...</div>
+        <div class="btn-group" style="margin-top:20px">
+            <button onclick="startGame('host')">LAUNCH MISSION</button>
         </div>
-        <p style="font-size:12px; margin-top:5px; color:#888;">Scan to Join</p>
-        
-        <div class="lobby-panel" id="lobby-list">
-            <!-- Populated by JS -->
-        </div>
-        <button class="btn" onclick="launchGame()">START GAME</button>
     </div>
 
-    <!-- WAIT SCREEN -->
+    <!-- JOIN WAIT -->
     <div id="wait-screen" class="screen hidden">
-        <h1>CONNECTED</h1>
-        <p>WAITING FOR HOST...</p>
-        <div id="p-badge" style="width:50px; height:50px; background:white; border-radius:50%; box-shadow:0 0 20px white;"></div>
+        <h1>LINKED</h1>
+        <p style="color:var(--c-p1)">AWAITING HOST LAUNCH...</p>
     </div>
 
 <script>
-/** 
- * GAME ENGINE FOR MOBILE PORTRAIT 
+/**
+ * AUDIO ENGINE (Synthesizer)
+ */
+const AudioSys = {
+    ctx: null,
+    bgmOscs: [],
+    isPlaying: false,
+
+    init: () => {
+        if(!AudioSys.ctx) AudioSys.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if(AudioSys.ctx.state === 'suspended') AudioSys.ctx.resume();
+    },
+
+    playTone: (freq, type, dur, vol=0.1) => {
+        if(!AudioSys.ctx) return;
+        const o = AudioSys.ctx.createOscillator();
+        const g = AudioSys.ctx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, AudioSys.ctx.currentTime);
+        g.gain.setValueAtTime(vol, AudioSys.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, AudioSys.ctx.currentTime + dur);
+        o.connect(g);
+        g.connect(AudioSys.ctx.destination);
+        o.start();
+        o.stop(AudioSys.ctx.currentTime + dur);
+    },
+
+    sfx: {
+        shoot: () => AudioSys.playTone(400, 'square', 0.1, 0.05),
+        boom: () => {
+            if(!AudioSys.ctx) return;
+            const b = AudioSys.ctx.createBuffer(1, AudioSys.ctx.sampleRate*0.5, AudioSys.ctx.sampleRate);
+            const d = b.getChannelData(0);
+            for(let i=0; i<d.length; i++) d[i] = Math.random()*2-1;
+            const src = AudioSys.ctx.createBufferSource();
+            src.buffer = b;
+            const g = AudioSys.ctx.createGain();
+            g.gain.setValueAtTime(0.2, AudioSys.ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, AudioSys.ctx.currentTime+0.4);
+            src.connect(g); g.connect(AudioSys.ctx.destination);
+            src.start();
+        },
+        powerup: () => {
+            if(!AudioSys.ctx) return;
+            const o = AudioSys.ctx.createOscillator();
+            const g = AudioSys.ctx.createGain();
+            o.frequency.setValueAtTime(200, AudioSys.ctx.currentTime);
+            o.frequency.linearRampToValueAtTime(800, AudioSys.ctx.currentTime+0.3);
+            g.gain.setValueAtTime(0.1, AudioSys.ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, AudioSys.ctx.currentTime+0.3);
+            o.connect(g); g.connect(AudioSys.ctx.destination);
+            o.start(); o.stop(AudioSys.ctx.currentTime+0.3);
+        }
+    },
+
+    startBGM: (intensity) => { // 1 = easy, 2 = normal, 3 = hard
+        if(AudioSys.isPlaying) return;
+        AudioSys.isPlaying = true;
+        const tempo = intensity === 1 ? 0.4 : (intensity === 3 ? 0.2 : 0.3);
+        let note = 0;
+        const notes = [110, 110, 130.81, 110, 146.83, 110, 164.81, 110]; // A Minorish
+        
+        AudioSys.bgmLoop = setInterval(() => {
+            if(!AudioSys.ctx) return;
+            const t = AudioSys.ctx.currentTime;
+            const o = AudioSys.ctx.createOscillator();
+            const g = AudioSys.ctx.createGain();
+            o.type = 'sawtooth';
+            const freq = notes[note % notes.length] * (intensity === 3 ? 2 : 1);
+            o.frequency.setValueAtTime(freq, t);
+            
+            // Envelope
+            g.gain.setValueAtTime(0.05, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + tempo);
+            
+            // Filter
+            const f = AudioSys.ctx.createBiquadFilter();
+            f.type = 'lowpass';
+            f.frequency.setValueAtTime(800, t);
+            f.frequency.linearRampToValueAtTime(100, t + tempo);
+            
+            o.connect(f); f.connect(g); g.connect(AudioSys.ctx.destination);
+            o.start(); o.stop(t + tempo);
+            note++;
+        }, tempo * 1000);
+    }
+};
+
+/**
+ * GAME CONFIGURATION
+ */
+const CONFIG = {
+    easy: { spawnRate: 0.02, enemySpd: 0.5, enemyHp: 0.5, playerHp: 200, name: 'CADET' },
+    normal: { spawnRate: 0.035, enemySpd: 1.0, enemyHp: 1.0, playerHp: 100, name: 'VETERAN' },
+    hard: { spawnRate: 0.06, enemySpd: 1.6, enemyHp: 2.0, playerHp: 60, name: 'LORD' }
+};
+
+let currentDiff = 'normal';
+function setDiff(d) {
+    currentDiff = d;
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+}
+
+/**
+ * MAIN GAME ENGINE
  */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let W, H;
+const COLORS = ['#00f0ff', '#ff0055', '#ffee00', '#00ff66'];
 
-// CONFIG
-const COLORS = ['#00f3ff', '#ff0055', '#ffff00', '#00ff66'];
-
-// STATE
+// Game State
 let game = {
-    running: false,
-    mode: 'solo', // solo, host, client
+    active: false,
+    mode: 'solo',
     myId: 0,
     players: {},
     enemies: [],
     bullets: [],
     particles: [],
     score: 0,
-    wave: 1
+    wave: 1,
+    shake: 0
 };
 
-// INPUT (Twin Stick Logic)
+// Controls
 const input = {
-    move: { x: 0, y: 0, active: false, id: null, startX:0, startY:0 },
-    aim: { x: 0, y: 0, active: false, id: null, startX:0, startY:0 },
+    move: { x:0, y:0, active:false, id:null, origin:{x:0,y:0} },
+    aim: { x:0, y:0, active:false, id:null, origin:{x:0,y:0} },
     weapon: 0
 };
 
-// --- RESIZE ---
-function resize() {
-    W = canvas.width = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+// Resize
+function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; }
+window.addEventListener('resize', resize); resize();
 
-// --- TOUCH CONTROLS (FLOATING JOYSTICKS) ---
-const joyMoveEl = document.getElementById('joy-move');
-const joyAimEl = document.getElementById('joy-aim');
-const weaponBtn = document.getElementById('weapon-btn');
+// --- INPUT HANDLING ---
+const uiJoyL = document.getElementById('joy-l');
+const uiJoyR = document.getElementById('joy-r');
 
 document.addEventListener('touchstart', e => {
-    if(!game.running) return;
+    if(!game.active) return;
+    AudioSys.init();
     e.preventDefault();
-    
     for(let i=0; i<e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         
-        // Check weapon button click (Center Bottom)
-        const btnRect = weaponBtn.getBoundingClientRect();
-        if(t.clientX >= btnRect.left && t.clientX <= btnRect.right && 
-           t.clientY >= btnRect.top && t.clientY <= btnRect.bottom) {
-            input.weapon = (input.weapon + 1) % 3;
-            weaponBtn.innerText = ['⚡', '💥', '🚀'][input.weapon];
+        // Weapon Switch (Center Tap)
+        if(t.clientX > W*0.4 && t.clientX < W*0.6 && t.clientY > H*0.8) {
+            input.weapon = (input.weapon+1)%3;
+            updateWeaponUI();
             continue;
         }
 
-        // Left Half = Move
         if(t.clientX < W/2 && !input.move.active) {
             input.move.active = true;
             input.move.id = t.identifier;
-            input.move.startX = t.clientX;
-            input.move.startY = t.clientY;
-            
-            // Visuals
-            joyMoveEl.style.display = 'block';
-            joyMoveEl.style.left = t.clientX + 'px';
-            joyMoveEl.style.top = t.clientY + 'px';
-            joyMoveEl.querySelector('.joystick-thumb').style.transform = `translate(-50%, -50%)`;
-        }
-        
-        // Right Half = Aim
-        else if(t.clientX >= W/2 && !input.aim.active) {
+            input.move.origin = {x:t.clientX, y:t.clientY};
+            showJoy(uiJoyL, t.clientX, t.clientY);
+        } else if(t.clientX > W/2 && !input.aim.active) {
             input.aim.active = true;
             input.aim.id = t.identifier;
-            input.aim.startX = t.clientX;
-            input.aim.startY = t.clientY;
-            
-            // Visuals
-            joyAimEl.style.display = 'block';
-            joyAimEl.style.left = t.clientX + 'px';
-            joyAimEl.style.top = t.clientY + 'px';
-            joyAimEl.querySelector('.joystick-thumb').style.transform = `translate(-50%, -50%)`;
+            input.aim.origin = {x:t.clientX, y:t.clientY};
+            showJoy(uiJoyR, t.clientX, t.clientY);
         }
     }
 }, {passive:false});
 
 document.addEventListener('touchmove', e => {
-    if(!game.running) return;
+    if(!game.active) return;
     e.preventDefault();
-
     for(let i=0; i<e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
-        
-        // Move Logic
-        if(t.identifier === input.move.id) {
-            let dx = t.clientX - input.move.startX;
-            let dy = t.clientY - input.move.startY;
-            const dist = Math.min(Math.hypot(dx, dy), 40); // 40px radius
-            const angle = Math.atan2(dy, dx);
-            
-            input.move.x = (Math.cos(angle) * dist) / 40;
-            input.move.y = (Math.sin(angle) * dist) / 40;
-            
-            // Update visual thumb
-            const tx = Math.cos(angle) * dist;
-            const ty = Math.sin(angle) * dist;
-            joyMoveEl.querySelector('.joystick-thumb').style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px))`;
-        }
-        
-        // Aim Logic
-        if(t.identifier === input.aim.id) {
-            let dx = t.clientX - input.aim.startX;
-            let dy = t.clientY - input.aim.startY;
-            const dist = Math.min(Math.hypot(dx, dy), 40);
-            const angle = Math.atan2(dy, dx);
-            
-            input.aim.x = Math.cos(angle);
-            input.aim.y = Math.sin(angle);
-            
-            const tx = Math.cos(angle) * dist;
-            const ty = Math.sin(angle) * dist;
-            joyAimEl.querySelector('.joystick-thumb').style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px))`;
-        }
+        if(t.identifier === input.move.id) updateJoy(input.move, t, uiJoyL);
+        if(t.identifier === input.aim.id) updateJoy(input.aim, t, uiJoyR);
     }
 }, {passive:false});
 
@@ -325,297 +356,327 @@ document.addEventListener('touchend', e => {
     e.preventDefault();
     for(let i=0; i<e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
-        if(t.identifier === input.move.id) {
-            input.move.active = false;
-            input.move.x = 0; input.move.y = 0;
-            joyMoveEl.style.display = 'none';
-        }
-        if(t.identifier === input.aim.id) {
-            input.aim.active = false;
-            // Don't reset aim vector so we keep shooting last direction? 
-            // Better to stop shooting.
-            joyAimEl.style.display = 'none';
-        }
+        if(t.identifier === input.move.id) { input.move.active=false; input.move.x=0; input.move.y=0; uiJoyL.style.display='none'; }
+        if(t.identifier === input.aim.id) { input.aim.active=false; input.aim.x=0; input.aim.y=0; uiJoyR.style.display='none'; }
     }
 }, {passive:false});
 
-// --- AUDIO ---
-const actx = new (window.AudioContext || window.webkitAudioContext)();
-function sfx(type) {
-    if(actx.state==='suspended') actx.resume();
-    const o = actx.createOscillator();
-    const g = actx.createGain();
-    const t = actx.currentTime;
-    o.connect(g); g.connect(actx.destination);
-    
-    if(type==='shoot') {
-        o.frequency.setValueAtTime(300, t);
-        o.frequency.exponentialRampToValueAtTime(50, t+0.1);
-        g.gain.setValueAtTime(0.1, t);
-        g.gain.linearRampToValueAtTime(0, t+0.1);
-        o.start(); o.stop(t+0.1);
-    } else { // Boom
-        o.type='sawtooth';
-        o.frequency.setValueAtTime(100, t);
-        o.frequency.exponentialRampToValueAtTime(10, t+0.3);
-        g.gain.setValueAtTime(0.2, t);
-        g.gain.linearRampToValueAtTime(0, t+0.3);
-        o.start(); o.stop(t+0.3);
-    }
+function showJoy(el, x, y) {
+    el.style.display = 'block';
+    el.style.left = x+'px'; el.style.top = y+'px';
+    el.querySelector('.joystick-thumb').style.transform = 'translate(-50%,-50%)';
 }
+
+function updateJoy(ctrl, touch, el) {
+    const dx = touch.clientX - ctrl.origin.x;
+    const dy = touch.clientY - ctrl.origin.y;
+    const dist = Math.min(Math.hypot(dx,dy), 50);
+    const ang = Math.atan2(dy, dx);
+    ctrl.x = (Math.cos(ang)*dist)/50;
+    ctrl.y = (Math.sin(ang)*dist)/50;
+    const tx = Math.cos(ang)*dist;
+    const ty = Math.sin(ang)*dist;
+    el.querySelector('.joystick-thumb').style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px))`;
+}
+
+// PC Controls
+window.addEventListener('keydown', e => {
+    if(e.code==='KeyW') input.move.y = -1;
+    if(e.code==='KeyS') input.move.y = 1;
+    if(e.code==='KeyA') input.move.x = -1;
+    if(e.code==='KeyD') input.move.x = 1;
+    if(e.code==='Space') input.aim.active = true;
+});
+window.addEventListener('keyup', e => {
+    if(['KeyW','KeyS'].includes(e.code)) input.move.y = 0;
+    if(['KeyA','KeyD'].includes(e.code)) input.move.x = 0;
+    if(e.code==='Space') input.aim.active = false;
+});
+window.addEventListener('mousemove', e => {
+    const p = game.players[game.myId];
+    if(p) {
+        const dx = e.clientX - p.x;
+        const dy = e.clientY - p.y;
+        const ang = Math.atan2(dy, dx);
+        input.aim.x = Math.cos(ang); input.aim.y = Math.sin(ang);
+    }
+});
+window.addEventListener('mousedown', () => { AudioSys.init(); input.aim.active=true; });
+window.addEventListener('mouseup', () => input.aim.active=false);
+
 
 // --- LOGIC ---
 
-function init() {
-    game.players[game.myId] = { x: W/2, y: H/2, hp: 100, active: true, color: COLORS[game.myId], id: game.myId };
-    
-    document.getElementById('menu-screen').classList.add('hidden');
-    document.getElementById('lobby-screen').classList.add('hidden');
-    document.getElementById('wait-screen').classList.add('hidden');
-    document.getElementById('ui-layer').classList.remove('hidden');
-    
-    // Set UI Color
-    document.querySelector('.hp-bar').style.backgroundColor = COLORS[game.myId];
-    document.querySelector('.hp-bar').style.boxShadow = `0 0 10px ${COLORS[game.myId]}`;
-    
-    game.running = true;
-    requestAnimationFrame(loop);
-}
-
 const WEAPONS = [
-    { rate: 10, count: 1, spread: 0, speed: 12, dmg: 20 }, // Pulse
-    { rate: 25, count: 3, spread: 0.3, speed: 10, dmg: 15 }, // Spread
-    { rate: 50, count: 1, spread: 0, speed: 20, dmg: 80 }  // Rocket
+    { name:'PULSE', rate:10, count:1, spread:0, speed:12, dmg:20 },
+    { name:'SPREAD', rate:25, count:3, spread:0.3, speed:10, dmg:12 },
+    { name:'CANNON', rate:40, count:1, spread:0, speed:18, dmg:60 }
 ];
 
-function update() {
-    if(!game.running) return;
+function updateWeaponUI() {
+    document.getElementById('weaponEl').innerText = WEAPONS[input.weapon].name;
+}
 
-    // 1. Player Logic (Local)
+function update() {
+    if(!game.active) return;
+    const cfg = CONFIG[currentDiff];
+
+    // Local Player Logic
     const p = game.players[game.myId];
     if(p && p.hp > 0) {
-        // Move
         p.x += input.move.x * 5;
         p.y += input.move.y * 5;
-        p.x = Math.max(15, Math.min(W-15, p.x));
-        p.y = Math.max(15, Math.min(H-15, p.y));
-        
-        // Aim/Shoot
+        p.x = Math.max(20, Math.min(W-20, p.x));
+        p.y = Math.max(20, Math.min(H-20, p.y));
+
         if(input.aim.active) {
             const w = WEAPONS[input.weapon];
             const now = Date.now();
             if(!p.lastShot || now - p.lastShot > (1000/60)*w.rate) {
                 p.lastShot = now;
-                sfx('shoot');
+                AudioSys.sfx.shoot();
                 
-                // Angle
-                const baseAng = Math.atan2(input.aim.y, input.aim.x);
-                
-                // If Host/Solo, create bullet directly
-                // If Client, send input to Host
+                // If Host/Solo, create bullet. If Client, send fire request.
                 if(game.mode !== 'client') {
+                    const ang = Math.atan2(input.aim.y, input.aim.x);
                     for(let i=0; i<w.count; i++) {
-                        const a = baseAng - (w.spread*(w.count-1))/2 + (w.spread*i);
+                        const a = ang - (w.spread*(w.count-1))/2 + (w.spread*i);
                         game.bullets.push({
-                            x: p.x, y: p.y, 
-                            vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed,
-                            c: p.color, dmg: w.dmg, owner: game.myId
+                            x:p.x, y:p.y, vx:Math.cos(a)*w.speed, vy:Math.sin(a)*w.speed,
+                            c:p.color, dmg:w.dmg, owner:game.myId
                         });
                     }
+                    // Recoil
+                    p.x -= Math.cos(ang)*2; p.y -= Math.sin(ang)*2;
                 }
             }
         }
     }
 
-    // 2. Host Logic
+    // Host Logic
     if(game.mode !== 'client') {
-        // Spawn Enemies (Portrait: Spawn mostly Top, some sides)
-        if(Math.random() < 0.03 + (game.wave*0.005)) {
+        // Spawn
+        if(Math.random() < cfg.spawnRate + (game.wave*0.002)) {
+            const edge = Math.floor(Math.random()*4);
             let ex, ey;
-            const r = Math.random();
-            if(r < 0.6) { ex = Math.random()*W; ey = -30; } // 60% Top
-            else if(r < 0.8) { ex = -30; ey = Math.random()*H*0.6; } // Left
-            else { ex = W+30; ey = Math.random()*H*0.6; } // Right
+            if(edge==0){ex=Math.random()*W;ey=-30;}
+            if(edge==1){ex=W+30;ey=Math.random()*H;}
+            if(edge==2){ex=Math.random()*W;ey=H+30;}
+            if(edge==3){ex=-30;ey=Math.random()*H;}
             
             game.enemies.push({
-                x: ex, y: ey,
-                hp: 30 + (game.wave*10), maxHp: 30 + (game.wave*10),
-                speed: 1 + (game.wave*0.1),
-                target: Math.floor(Math.random() * Object.keys(game.players).length) // Simple target logic
+                x:ex, y:ey, 
+                hp: (30 + (game.wave*5)) * cfg.enemyHp,
+                maxHp: (30 + (game.wave*5)) * cfg.enemyHp,
+                spd: (1.5 + (game.wave*0.1)) * cfg.enemySpd
             });
         }
 
-        // Enemies Move
+        // Update Enemies
         game.enemies.forEach(e => {
-            // Find nearest player
-            let target = null;
-            let dist = 9999;
+            // Find target
+            let target = null, dist = 9999;
             for(let id in game.players) {
-                let pl = game.players[id];
+                const pl = game.players[id];
                 if(pl.hp > 0) {
-                    let d = Math.hypot(pl.x - e.x, pl.y - e.y);
+                    const d = Math.hypot(pl.x-e.x, pl.y-e.y);
                     if(d < dist) { dist = d; target = pl; }
                 }
             }
-            
             if(target) {
-                const ang = Math.atan2(target.y - e.y, target.x - e.x);
-                e.x += Math.cos(ang) * e.speed;
-                e.y += Math.sin(ang) * e.speed;
+                const ang = Math.atan2(target.y-e.y, target.x-e.x);
+                e.x += Math.cos(ang)*e.spd; e.y += Math.sin(ang)*e.spd;
             } else {
-                e.y += e.speed; // Just move down if no target
+                e.y += e.spd;
             }
         });
 
         // Collisions
+        // Bullet vs Enemy
         for(let i=game.bullets.length-1; i>=0; i--) {
             let b = game.bullets[i];
             b.x += b.vx; b.y += b.vy;
             if(b.x<0||b.x>W||b.y<0||b.y>H) { game.bullets.splice(i,1); continue; }
             
-            // Vs Enemy
             for(let j=game.enemies.length-1; j>=0; j--) {
                 let e = game.enemies[j];
                 if(Math.hypot(b.x-e.x, b.y-e.y) < 25) {
                     e.hp -= b.dmg;
+                    // Spark
+                    game.particles.push({x:b.x, y:b.y, c:b.c, v:{x:(Math.random()-0.5)*5, y:(Math.random()-0.5)*5}, life:1});
                     game.bullets.splice(i,1);
-                    // Particles
-                    game.particles.push({x:b.x, y:b.y, c:b.c, life:1});
+                    
                     if(e.hp <= 0) {
                         game.enemies.splice(j,1);
                         game.score += 50;
-                        sfx('boom');
+                        game.shake = 5;
+                        AudioSys.sfx.boom();
+                        // Explosion
+                        for(let k=0;k<8;k++) game.particles.push({x:e.x, y:e.y, c:'#ff5500', v:{x:(Math.random()-0.5)*10, y:(Math.random()-0.5)*10}, life:1.5});
                     }
                     break;
                 }
             }
         }
-        
+
         // Enemy vs Player
         for(let j=game.enemies.length-1; j>=0; j--) {
             let e = game.enemies[j];
             for(let id in game.players) {
                 let pl = game.players[id];
-                if(pl.hp > 0 && Math.hypot(e.x-pl.x, e.y-pl.y) < 25) {
+                if(pl.hp > 0 && Math.hypot(e.x-pl.x, e.y-pl.y) < 30) {
                     pl.hp -= 20;
                     game.enemies.splice(j,1);
-                    sfx('boom');
+                    game.shake = 15;
+                    AudioSys.sfx.boom();
+                    if(pl.hp <= 0) {
+                        pl.hp = 0;
+                        // Player death particles
+                        for(let k=0;k<20;k++) game.particles.push({x:pl.x, y:pl.y, c:pl.color, v:{x:(Math.random()-0.5)*15, y:(Math.random()-0.5)*15}, life:2});
+                    }
                 }
             }
         }
-        
-        if(game.score > game.wave * 1000) game.wave++;
-        
-        // Broadcast
+
+        // Wave
+        if(game.score > game.wave * 1500) {
+            game.wave++;
+            document.getElementById('waveEl').innerText = "WAVE " + game.wave;
+            AudioSys.sfx.powerup();
+        }
+
+        // Broadcast State
         if(game.mode === 'host') {
-            const packet = { 
-                t: 's', 
-                pl: game.players, 
-                en: game.enemies, 
-                bu: game.bullets, 
-                sc: game.score, 
-                wv: game.wave 
-            };
-            for(let c of conns) c.send(packet);
+            const packet = { t:'state', pl:game.players, en:game.enemies, bu:game.bullets, sc:game.score, wv:game.wave };
+            conns.forEach(c => c.send(packet));
         }
     } else {
-        // Client: Send Input
+        // Client Input
         if(conn && conn.open) {
-            conn.send({ 
-                t: 'i', 
-                x: game.players[game.myId].x, 
-                y: game.players[game.myId].y,
-                fire: input.aim.active,
-                ax: input.aim.x, ay: input.aim.y,
-                w: input.weapon
+            conn.send({
+                t:'input', 
+                x:game.players[game.myId].x, 
+                y:game.players[game.myId].y,
+                fire:input.aim.active,
+                ax:input.aim.x, ay:input.aim.y,
+                w:input.weapon
             });
         }
     }
-    
-    // UI
-    document.getElementById('score').innerText = game.score;
-    document.getElementById('wave').innerText = "WAVE " + game.wave;
+
+    // UI Updates
+    document.getElementById('scoreEl').innerText = game.score;
     if(game.players[game.myId]) {
-        document.getElementById('hpBar').style.width = Math.max(0, game.players[game.myId].hp) + '%';
+        const hpPct = (game.players[game.myId].hp / CONFIG[currentDiff].playerHp) * 100;
+        document.getElementById('hpEl').style.width = Math.max(0, hpPct) + "%";
     }
 }
 
 function draw() {
     ctx.fillStyle = '#050508';
     ctx.fillRect(0,0,W,H);
-    
-    // Grid (Vertical scrolling effect)
+
+    // Shake
+    if(game.shake > 0) {
+        ctx.save();
+        ctx.translate((Math.random()-0.5)*game.shake, (Math.random()-0.5)*game.shake);
+        game.shake *= 0.9;
+        if(game.shake < 1) game.shake = 0;
+    }
+
+    // Background Grid (Moving)
     ctx.strokeStyle = '#111122';
     ctx.lineWidth = 1;
-    const off = (Date.now() * 0.1) % 50;
+    const offset = (Date.now()*0.1)%50;
     ctx.beginPath();
     for(let x=0; x<W; x+=50) { ctx.moveTo(x,0); ctx.lineTo(x,H); }
-    for(let y=off; y<H; y+=50) { ctx.moveTo(0,y); ctx.lineTo(W,y); }
+    for(let y=offset; y<H; y+=50) { ctx.moveTo(0,y); ctx.lineTo(W,y); }
     ctx.stroke();
-    
+
     ctx.globalCompositeOperation = 'lighter';
-    
+
     // Particles
     for(let i=game.particles.length-1; i>=0; i--) {
         let p = game.particles[i];
         ctx.fillStyle = p.c;
-        ctx.beginPath(); ctx.arc(p.x, p.y, 4*p.life, 0, Math.PI*2); ctx.fill();
-        p.life -= 0.1;
-        if(p.life<=0) game.particles.splice(i,1);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3*p.life, 0, Math.PI*2); ctx.fill();
+        p.x += p.v.x; p.y += p.v.y;
+        p.life -= 0.05;
+        if(p.life <= 0) game.particles.splice(i,1);
     }
 
     // Bullets
     game.bullets.forEach(b => {
-        ctx.fillStyle = b.c;
-        ctx.shadowColor = b.c; ctx.shadowBlur = 10;
+        ctx.shadowColor = b.c; ctx.shadowBlur = 10; ctx.fillStyle = b.c;
         ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
     });
-    
+
     // Enemies
     game.enemies.forEach(e => {
-        ctx.fillStyle = '#ff0055';
-        ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 15;
+        ctx.shadowColor = '#f00'; ctx.shadowBlur = 15; ctx.strokeStyle = '#f00'; ctx.lineWidth = 2;
+        ctx.save(); ctx.translate(e.x, e.y);
+        ctx.rotate(Date.now()*0.005);
         ctx.beginPath(); 
-        ctx.moveTo(e.x, e.y+15); ctx.lineTo(e.x-12, e.y-12); ctx.lineTo(e.x+12, e.y-12); 
-        ctx.fill();
+        ctx.moveTo(15,0); ctx.lineTo(-10,10); ctx.lineTo(-10,-10); ctx.closePath(); 
+        ctx.stroke();
+        ctx.restore();
     });
-    
+
     // Players
     for(let id in game.players) {
-        let p = game.players[id];
+        const p = game.players[id];
         if(p.active && p.hp > 0) {
+            ctx.shadowColor = p.color; ctx.shadowBlur = 20; ctx.strokeStyle = p.color; ctx.lineWidth = 3;
             ctx.fillStyle = '#000';
-            ctx.strokeStyle = p.color;
-            ctx.lineWidth = 3;
-            ctx.shadowColor = p.color; ctx.shadowBlur = 20;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 18, 0, Math.PI*2);
-            ctx.fill(); ctx.stroke();
-            
-            // Name
-            ctx.fillStyle = '#fff'; ctx.font='10px Arial'; ctx.textAlign='center';
-            ctx.shadowBlur=0;
+            // ID
+            ctx.shadowBlur=0; ctx.fillStyle='#fff'; ctx.font='10px Orbitron'; ctx.textAlign='center';
             ctx.fillText("P"+(parseInt(id)+1), p.x, p.y+4);
         }
     }
-    
+
+    if(game.shake > 0) ctx.restore();
     ctx.globalCompositeOperation = 'source-over';
-    requestAnimationFrame(loop);
+    
+    if(game.active) requestAnimationFrame(loop);
 }
 
-function loop() {
-    update();
-    draw();
-    if(game.running) requestAnimationFrame(loop);
-}
+function loop() { update(); draw(); if(game.active) requestAnimationFrame(loop); }
 
-// --- NETWORKING ---
+
+// --- NETWORKING & MENUS ---
 let peer, conn, conns = [];
 
-function startSingle() {
+function initGame() {
+    AudioSys.init();
+    
+    // Set intensity based on diff
+    let intensity = 2;
+    if(currentDiff === 'easy') intensity = 1;
+    if(currentDiff === 'hard') intensity = 3;
+    AudioSys.startBGM(intensity);
+
+    game.players[game.myId] = { 
+        x: W/2, y: H/2, 
+        hp: CONFIG[currentDiff].playerHp, 
+        active: true, 
+        color: COLORS[game.myId] 
+    };
+
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById('ui-layer').classList.remove('hidden');
+    game.active = true;
+    loop();
+}
+
+function startGame(mode) {
+    game.mode = mode;
     game.myId = 0;
-    init();
+    if(mode === 'host') {
+        conns.forEach(c => c.send({ t:'start', diff: currentDiff }));
+    }
+    initGame();
 }
 
 function setupHost() {
@@ -623,40 +684,37 @@ function setupHost() {
     game.myId = 0;
     document.getElementById('menu-screen').classList.add('hidden');
     document.getElementById('lobby-screen').classList.remove('hidden');
-    updateLobbyUI();
-
+    
     peer = new Peer();
     peer.on('open', id => {
         const url = window.location.href.split('?')[0] + '?join=' + id;
-        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
+        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`;
     });
     
     peer.on('connection', c => {
-        if(conns.length >= 3) return; // Max 4
         conns.push(c);
-        const newId = conns.length;
-        game.players[newId] = { active:true, color:COLORS[newId] };
-        updateLobbyUI();
+        const pid = conns.length;
+        game.players[pid] = { active:true, color:COLORS[pid] };
+        document.getElementById('lobby-msg').innerText = `${pid} PILOTS CONNECTED`;
         
-        c.on('open', () => c.send({ t:'welcome', id:newId }));
+        c.on('open', () => c.send({ t:'welcome', id:pid }));
         c.on('data', d => {
-            if(d.t === 'i') {
-                // Input Sync
-                let p = game.players[newId];
-                if(p) { 
-                    p.x = d.x; p.y = d.y; 
+            if(d.t === 'input') {
+                const p = game.players[pid];
+                if(p) {
+                    p.x = d.x; p.y = d.y;
                     if(d.fire) {
-                         const w = WEAPONS[d.w];
-                         const now = Date.now();
-                         if(!p.lastShot || now - p.lastShot > (1000/60)*w.rate) {
-                             p.lastShot = now;
-                             sfx('shoot');
-                             const base = Math.atan2(d.ay, d.ax);
-                             for(let i=0; i<w.count; i++) {
-                                 const a = base - (w.spread*(w.count-1))/2 + (w.spread*i);
-                                 game.bullets.push({x:p.x, y:p.y, vx:Math.cos(a)*w.speed, vy:Math.sin(a)*w.speed, c:p.color, dmg:w.dmg, owner:newId});
-                             }
-                         }
+                        const w = WEAPONS[d.w];
+                        const now = Date.now();
+                        if(!p.lastShot || now-p.lastShot > (1000/60)*w.rate) {
+                            p.lastShot = now;
+                            AudioSys.sfx.shoot();
+                            const ang = Math.atan2(d.ay, d.ax);
+                            for(let i=0; i<w.count; i++) {
+                                const a = ang - (w.spread*(w.count-1))/2 + (w.spread*i);
+                                game.bullets.push({ x:p.x, y:p.y, vx:Math.cos(a)*w.speed, vy:Math.sin(a)*w.speed, c:p.color, dmg:w.dmg, owner:pid });
+                            }
+                        }
                     }
                 }
             }
@@ -664,28 +722,9 @@ function setupHost() {
     });
 }
 
-function updateLobbyUI() {
-    const list = document.getElementById('lobby-list');
-    list.innerHTML = '';
-    
-    // Host
-    list.innerHTML += `<div class="player-row"><span style="color:${COLORS[0]}">P1 (HOST)</span><span class="ready">READY</span></div>`;
-    
-    // Clients
-    conns.forEach((c, i) => {
-        list.innerHTML += `<div class="player-row"><span style="color:${COLORS[i+1]}">P${i+2}</span><span class="ready">READY</span></div>`;
-    });
-}
-
-function launchGame() {
-    conns.forEach(c => c.send({ t:'start' }));
-    init();
-}
-
 // Client
-const urlParams = new URLSearchParams(window.location.search);
-const joinId = urlParams.get('join');
-
+const params = new URLSearchParams(window.location.search);
+const joinId = params.get('join');
 if(joinId) {
     game.mode = 'client';
     document.getElementById('menu-screen').classList.add('hidden');
@@ -697,21 +736,19 @@ if(joinId) {
         conn.on('data', d => {
             if(d.t === 'welcome') {
                 game.myId = d.id;
-                const b = document.getElementById('p-badge');
-                b.style.backgroundColor = COLORS[game.myId];
-                b.style.boxShadow = `0 0 20px ${COLORS[game.myId]}`;
             }
-            if(d.t === 'start') init();
-            if(d.t === 's') {
-                // Sync State
+            if(d.t === 'start') {
+                currentDiff = d.diff;
+                initGame();
+            }
+            if(d.t === 'state') {
                 game.enemies = d.en;
                 game.bullets = d.bu;
                 game.score = d.sc;
                 game.wave = d.wv;
-                // Sync other players
                 for(let id in d.pl) {
                     if(parseInt(id) !== game.myId) game.players[id] = d.pl[id];
-                    else game.players[game.myId].hp = d.pl[id].hp; // Only sync HP for self
+                    else game.players[game.myId].hp = d.pl[id].hp;
                 }
             }
         });
