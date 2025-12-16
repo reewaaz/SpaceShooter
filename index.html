@@ -3,757 +3,496 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON VANGUARD: Cyber Warfare</title>
+    <title>Alien Invasion</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-
-        :root {
-            --c-p1: #00f0ff; /* Cyan */
-            --c-p2: #ff0055; /* Pink */
-            --c-p3: #ffee00; /* Yellow */
-            --c-p4: #00ff66; /* Green */
-            --c-enemy: #ff3333;
-            --bg: #050508;
-        }
-
-        * {
-            box-sizing: border-box;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-            font-family: 'Orbitron', sans-serif;
-        }
-
         body {
             margin: 0;
-            background-color: var(--bg);
             overflow: hidden;
+            background-color: #050510;
+            font-family: 'Courier New', Courier, monospace;
             color: white;
+            touch-action: none; /* Prevents pull-to-refresh on mobile */
         }
-
         canvas {
             display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-        }
-
-        /* UI LAYERS */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            display: flex; flex-direction: column; justify-content: space-between;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
-
-        .hud-bar {
-            padding: 15px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
-            display: flex; justify-content: space-between; align-items: flex-start;
+        #lobby {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 10px;
+            pointer-events: auto;
+            border: 2px solid #00ffcc;
+            max-width: 90%;
         }
-
-        .score-display {
-            font-size: 2rem; color: #fff; text-shadow: 0 0 10px var(--c-p1);
+        h1 { margin: 0 0 10px 0; color: #00ffcc; text-transform: uppercase; }
+        p { font-size: 14px; color: #ccc; }
+        #qrcode { margin: 20px auto; background: white; padding: 10px; display: inline-block; }
+        .hidden { display: none !important; }
+        #score-board {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            z-index: 10;
         }
-        
-        .hp-wrapper {
-            position: absolute; top: 60px; left: 20px; right: 20px;
-            height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;
+        #status {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
         }
-        .hp-fill {
-            height: 100%; background: var(--c-p1); width: 100%;
-            box-shadow: 0 0 10px var(--c-p1); transition: width 0.2s;
+        .btn {
+            background: #ff0055;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
         }
-
-        /* JOYSTICKS */
-        .joystick-guide {
-            position: absolute; width: 100px; height: 100px;
-            border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%;
-            transform: translate(-50%, -50%); pointer-events: none; display: none;
-        }
-        .joystick-thumb {
-            position: absolute; width: 50px; height: 50px;
-            background: rgba(255,255,255,0.4); border-radius: 50%;
-            transform: translate(-50%, -50%); box-shadow: 0 0 15px white;
-        }
-
-        /* MENUS */
-        .screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(8, 8, 12, 0.95);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100; backdrop-filter: blur(5px);
-            transition: opacity 0.5s;
-        }
-        .hidden { opacity: 0; pointer-events: none; }
-
-        h1 {
-            font-size: 3.5rem; line-height: 1; margin: 0 0 20px 0; text-align: center;
-            background: linear-gradient(to right, var(--c-p1), var(--c-p2));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-transform: uppercase; filter: drop-shadow(0 0 20px rgba(0,240,255,0.5));
-        }
-
-        .btn-group { display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 300px; }
-        
-        button {
-            background: transparent; border: 2px solid var(--c-p1); color: var(--c-p1);
-            padding: 15px; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px;
-            cursor: pointer; transition: 0.2s; position: relative; overflow: hidden;
-        }
-        button:active { background: var(--c-p1); color: #000; transform: scale(0.98); }
-        
-        .difficulty-selector {
-            display: flex; gap: 10px; margin-bottom: 20px;
-        }
-        .diff-btn {
-            flex: 1; font-size: 0.9rem; padding: 10px; border-color: #555; color: #555;
-        }
-        .diff-btn.active {
-            border-color: var(--c-p3); color: var(--c-p3); box-shadow: 0 0 15px rgba(255,238,0,0.3);
-        }
-
-        /* LOBBY */
-        #qr-box { background: white; padding: 10px; border-radius: 10px; margin: 15px 0; }
-        .lobby-status { color: #888; margin-top: 10px; font-size: 0.9rem; animation: pulse 1s infinite; }
-        @keyframes pulse { 0%{opacity:0.5} 50%{opacity:1} 100%{opacity:0.5} }
-
     </style>
 </head>
 <body>
 
-    <canvas id="gameCanvas"></canvas>
+    <div id="score-board">SCORE: 0</div>
+    <div id="status">Initializing...</div>
 
-    <!-- HUD -->
-    <div id="ui-layer" class="hidden">
-        <div class="hud-bar">
-            <div class="score-display" id="scoreEl">0</div>
-            <div style="text-align:right">
-                <div id="waveEl" style="color:var(--c-p3)">WAVE 1</div>
-                <div id="weaponEl" style="font-size:0.8rem; color:#aaa">PULSE RIFLE</div>
+    <div id="ui-layer">
+        <div id="lobby">
+            <h1>Alien Invasion</h1>
+            <div id="host-ui">
+                <p>Scan to join Player 1 (Red)</p>
+                <div id="qrcode"></div>
+                <p>Waiting for Player 2...</p>
+            </div>
+            <div id="client-ui" class="hidden">
+                <p>Connecting to Host...</p>
+            </div>
+            <div id="game-over-ui" class="hidden">
+                <h1 style="color: #ff0055;">GAME OVER</h1>
+                <p id="final-score">Score: 0</p>
+                <button class="btn" onclick="location.reload()">RESTART</button>
             </div>
         </div>
-        <div class="hp-wrapper"><div class="hp-fill" id="hpEl"></div></div>
-        
-        <!-- Virtual Joysticks -->
-        <div id="joy-l" class="joystick-guide"><div class="joystick-thumb"></div></div>
-        <div id="joy-r" class="joystick-guide" style="border-color:var(--c-p2)"><div class="joystick-thumb" style="background:rgba(255,0,85,0.4)"></div></div>
     </div>
 
-    <!-- MAIN MENU -->
-    <div id="menu-screen" class="screen">
-        <h1>NEON<br>VANGUARD</h1>
-        
-        <div class="difficulty-selector">
-            <button class="diff-btn" onclick="setDiff('easy')">CADET</button>
-            <button class="diff-btn active" onclick="setDiff('normal')">VETERAN</button>
-            <button class="diff-btn" onclick="setDiff('hard')">LORD</button>
-        </div>
-
-        <div class="btn-group">
-            <button onclick="startGame('solo')">SINGLE PLAYER</button>
-            <button onclick="setupHost()">HOST SQUAD</button>
-        </div>
-        <p style="margin-top:20px; font-size:0.8rem; color:#666">SCAN HOST QR TO JOIN</p>
-    </div>
-
-    <!-- LOBBY -->
-    <div id="lobby-screen" class="screen hidden">
-        <h2>MISSION CONTROL</h2>
-        <div id="qr-box"><img id="qr-img" width="180" height="180"></div>
-        <div class="lobby-status" id="lobby-msg">Waiting for pilots...</div>
-        <div class="btn-group" style="margin-top:20px">
-            <button onclick="startGame('host')">LAUNCH MISSION</button>
-        </div>
-    </div>
-
-    <!-- JOIN WAIT -->
-    <div id="wait-screen" class="screen hidden">
-        <h1>LINKED</h1>
-        <p style="color:var(--c-p1)">AWAITING HOST LAUNCH...</p>
-    </div>
+    <canvas id="gameCanvas"></canvas>
 
 <script>
 /**
- * AUDIO ENGINE (Synthesizer)
- */
-const AudioSys = {
-    ctx: null,
-    bgmOscs: [],
-    isPlaying: false,
-
-    init: () => {
-        if(!AudioSys.ctx) AudioSys.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if(AudioSys.ctx.state === 'suspended') AudioSys.ctx.resume();
-    },
-
-    playTone: (freq, type, dur, vol=0.1) => {
-        if(!AudioSys.ctx) return;
-        const o = AudioSys.ctx.createOscillator();
-        const g = AudioSys.ctx.createGain();
-        o.type = type;
-        o.frequency.setValueAtTime(freq, AudioSys.ctx.currentTime);
-        g.gain.setValueAtTime(vol, AudioSys.ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, AudioSys.ctx.currentTime + dur);
-        o.connect(g);
-        g.connect(AudioSys.ctx.destination);
-        o.start();
-        o.stop(AudioSys.ctx.currentTime + dur);
-    },
-
-    sfx: {
-        shoot: () => AudioSys.playTone(400, 'square', 0.1, 0.05),
-        boom: () => {
-            if(!AudioSys.ctx) return;
-            const b = AudioSys.ctx.createBuffer(1, AudioSys.ctx.sampleRate*0.5, AudioSys.ctx.sampleRate);
-            const d = b.getChannelData(0);
-            for(let i=0; i<d.length; i++) d[i] = Math.random()*2-1;
-            const src = AudioSys.ctx.createBufferSource();
-            src.buffer = b;
-            const g = AudioSys.ctx.createGain();
-            g.gain.setValueAtTime(0.2, AudioSys.ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.001, AudioSys.ctx.currentTime+0.4);
-            src.connect(g); g.connect(AudioSys.ctx.destination);
-            src.start();
-        },
-        powerup: () => {
-            if(!AudioSys.ctx) return;
-            const o = AudioSys.ctx.createOscillator();
-            const g = AudioSys.ctx.createGain();
-            o.frequency.setValueAtTime(200, AudioSys.ctx.currentTime);
-            o.frequency.linearRampToValueAtTime(800, AudioSys.ctx.currentTime+0.3);
-            g.gain.setValueAtTime(0.1, AudioSys.ctx.currentTime);
-            g.gain.linearRampToValueAtTime(0, AudioSys.ctx.currentTime+0.3);
-            o.connect(g); g.connect(AudioSys.ctx.destination);
-            o.start(); o.stop(AudioSys.ctx.currentTime+0.3);
-        }
-    },
-
-    startBGM: (intensity) => { // 1 = easy, 2 = normal, 3 = hard
-        if(AudioSys.isPlaying) return;
-        AudioSys.isPlaying = true;
-        const tempo = intensity === 1 ? 0.4 : (intensity === 3 ? 0.2 : 0.3);
-        let note = 0;
-        const notes = [110, 110, 130.81, 110, 146.83, 110, 164.81, 110]; // A Minorish
-        
-        AudioSys.bgmLoop = setInterval(() => {
-            if(!AudioSys.ctx) return;
-            const t = AudioSys.ctx.currentTime;
-            const o = AudioSys.ctx.createOscillator();
-            const g = AudioSys.ctx.createGain();
-            o.type = 'sawtooth';
-            const freq = notes[note % notes.length] * (intensity === 3 ? 2 : 1);
-            o.frequency.setValueAtTime(freq, t);
-            
-            // Envelope
-            g.gain.setValueAtTime(0.05, t);
-            g.gain.exponentialRampToValueAtTime(0.001, t + tempo);
-            
-            // Filter
-            const f = AudioSys.ctx.createBiquadFilter();
-            f.type = 'lowpass';
-            f.frequency.setValueAtTime(800, t);
-            f.frequency.linearRampToValueAtTime(100, t + tempo);
-            
-            o.connect(f); f.connect(g); g.connect(AudioSys.ctx.destination);
-            o.start(); o.stop(t + tempo);
-            note++;
-        }, tempo * 1000);
-    }
-};
-
-/**
- * GAME CONFIGURATION
- */
-const CONFIG = {
-    easy: { spawnRate: 0.02, enemySpd: 0.5, enemyHp: 0.5, playerHp: 200, name: 'CADET' },
-    normal: { spawnRate: 0.035, enemySpd: 1.0, enemyHp: 1.0, playerHp: 100, name: 'VETERAN' },
-    hard: { spawnRate: 0.06, enemySpd: 1.6, enemyHp: 2.0, playerHp: 60, name: 'LORD' }
-};
-
-let currentDiff = 'normal';
-function setDiff(d) {
-    currentDiff = d;
-    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
-}
-
-/**
- * MAIN GAME ENGINE
+ * GAME CONFIGURATION & STATE
  */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-let W, H;
-const COLORS = ['#00f0ff', '#ff0055', '#ffee00', '#00ff66'];
+let width, height;
+
+// Resize handling
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Network State
+let peer = null;
+let conn = null;
+const urlParams = new URLSearchParams(window.location.search);
+const hostIdParam = urlParams.get('id');
+const isHost = !hostIdParam;
+let isConnected = false;
 
 // Game State
-let game = {
-    active: false,
-    mode: 'solo',
-    myId: 0,
-    players: {},
-    enemies: [],
-    bullets: [],
-    particles: [],
-    score: 0,
-    wave: 1,
-    shake: 0
+let gameRunning = false;
+let score = 0;
+let frames = 0;
+
+// Entities
+const players = {
+    p1: { x: 0, y: 0, color: '#ff4d4d', active: true, hp: 3, weaponLevel: 1 }, // Host
+    p2: { x: 0, y: 0, color: '#4d4dff', active: false, hp: 3, weaponLevel: 1 } // Client
 };
+let bullets = [];
+let enemies = [];
+let particles = [];
+let powerups = [];
 
-// Controls
-const input = {
-    move: { x:0, y:0, active:false, id:null, origin:{x:0,y:0} },
-    aim: { x:0, y:0, active:false, id:null, origin:{x:0,y:0} },
-    weapon: 0
-};
+// Input State
+const input = { x: 0, y: 0, firing: false }; // Local input
 
-// Resize
-function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; }
-window.addEventListener('resize', resize); resize();
+/**
+ * NETWORKING (PeerJS)
+ */
+function initNetwork() {
+    peer = new Peer(null, { debug: 2 });
 
-// --- INPUT HANDLING ---
-const uiJoyL = document.getElementById('joy-l');
-const uiJoyR = document.getElementById('joy-r');
-
-document.addEventListener('touchstart', e => {
-    if(!game.active) return;
-    AudioSys.init();
-    e.preventDefault();
-    for(let i=0; i<e.changedTouches.length; i++) {
-        const t = e.changedTouches[i];
+    peer.on('open', (id) => {
+        document.getElementById('status').innerText = isHost ? "Hosting ID: " + id : "Connected as Client";
         
-        // Weapon Switch (Center Tap)
-        if(t.clientX > W*0.4 && t.clientX < W*0.6 && t.clientY > H*0.8) {
-            input.weapon = (input.weapon+1)%3;
-            updateWeaponUI();
-            continue;
+        if (isHost) {
+            // Generate QR Code
+            const gameUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${id}`;
+            new QRCode(document.getElementById("qrcode"), {
+                text: gameUrl,
+                width: 180,
+                height: 180
+            });
+            
+            // Listen for connection
+            peer.on('connection', (c) => {
+                conn = c;
+                setupConnection();
+                players.p2.active = true;
+                startGame();
+            });
+        } else {
+            // Connect to host
+            document.getElementById('host-ui').classList.add('hidden');
+            document.getElementById('client-ui').classList.remove('hidden');
+            conn = peer.connect(hostIdParam);
+            setupConnection();
         }
-
-        if(t.clientX < W/2 && !input.move.active) {
-            input.move.active = true;
-            input.move.id = t.identifier;
-            input.move.origin = {x:t.clientX, y:t.clientY};
-            showJoy(uiJoyL, t.clientX, t.clientY);
-        } else if(t.clientX > W/2 && !input.aim.active) {
-            input.aim.active = true;
-            input.aim.id = t.identifier;
-            input.aim.origin = {x:t.clientX, y:t.clientY};
-            showJoy(uiJoyR, t.clientX, t.clientY);
-        }
-    }
-}, {passive:false});
-
-document.addEventListener('touchmove', e => {
-    if(!game.active) return;
-    e.preventDefault();
-    for(let i=0; i<e.changedTouches.length; i++) {
-        const t = e.changedTouches[i];
-        if(t.identifier === input.move.id) updateJoy(input.move, t, uiJoyL);
-        if(t.identifier === input.aim.id) updateJoy(input.aim, t, uiJoyR);
-    }
-}, {passive:false});
-
-document.addEventListener('touchend', e => {
-    e.preventDefault();
-    for(let i=0; i<e.changedTouches.length; i++) {
-        const t = e.changedTouches[i];
-        if(t.identifier === input.move.id) { input.move.active=false; input.move.x=0; input.move.y=0; uiJoyL.style.display='none'; }
-        if(t.identifier === input.aim.id) { input.aim.active=false; input.aim.x=0; input.aim.y=0; uiJoyR.style.display='none'; }
-    }
-}, {passive:false});
-
-function showJoy(el, x, y) {
-    el.style.display = 'block';
-    el.style.left = x+'px'; el.style.top = y+'px';
-    el.querySelector('.joystick-thumb').style.transform = 'translate(-50%,-50%)';
+    });
 }
 
-function updateJoy(ctrl, touch, el) {
-    const dx = touch.clientX - ctrl.origin.x;
-    const dy = touch.clientY - ctrl.origin.y;
-    const dist = Math.min(Math.hypot(dx,dy), 50);
-    const ang = Math.atan2(dy, dx);
-    ctrl.x = (Math.cos(ang)*dist)/50;
-    ctrl.y = (Math.sin(ang)*dist)/50;
-    const tx = Math.cos(ang)*dist;
-    const ty = Math.sin(ang)*dist;
-    el.querySelector('.joystick-thumb').style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px))`;
+function setupConnection() {
+    conn.on('open', () => {
+        isConnected = true;
+        document.getElementById('lobby').classList.add('hidden');
+        
+        // Data Listener
+        conn.on('data', (data) => {
+            if (isHost) {
+                // Host receives input from Client
+                if (data.type === 'input') {
+                    players.p2.x = data.x * width; // Normalize back to screen size
+                    players.p2.y = data.y * height;
+                }
+            } else {
+                // Client receives Game State from Host
+                if (data.type === 'state') {
+                    players.p1.x = data.p1.x * width;
+                    players.p1.y = data.p1.y * height;
+                    players.p1.active = data.p1.active;
+                    
+                    players.p2.x = data.p2.x * width; // Sync own position for smoothness
+                    players.p2.y = data.p2.y * height;
+                    players.p2.active = data.p2.active;
+
+                    // Sync lists (simplified for bandwidth)
+                    bullets = data.bullets; 
+                    enemies = data.enemies;
+                    powerups = data.powerups;
+                    score = data.score;
+                    if(data.gameOver) showGameOver();
+                }
+            }
+        });
+    });
 }
 
-// PC Controls
-window.addEventListener('keydown', e => {
-    if(e.code==='KeyW') input.move.y = -1;
-    if(e.code==='KeyS') input.move.y = 1;
-    if(e.code==='KeyA') input.move.x = -1;
-    if(e.code==='KeyD') input.move.x = 1;
-    if(e.code==='Space') input.aim.active = true;
+/**
+ * INPUT HANDLING (Touch)
+ */
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    input.x = touch.clientX;
+    input.y = touch.clientY - 50; // Offset slightly above finger
+    input.firing = true;
+}, { passive: false });
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    input.x = touch.clientX;
+    input.y = touch.clientY - 50;
+    input.firing = true;
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    input.firing = false;
 });
-window.addEventListener('keyup', e => {
-    if(['KeyW','KeyS'].includes(e.code)) input.move.y = 0;
-    if(['KeyA','KeyD'].includes(e.code)) input.move.x = 0;
-    if(e.code==='Space') input.aim.active = false;
-});
-window.addEventListener('mousemove', e => {
-    const p = game.players[game.myId];
-    if(p) {
-        const dx = e.clientX - p.x;
-        const dy = e.clientY - p.y;
-        const ang = Math.atan2(dy, dx);
-        input.aim.x = Math.cos(ang); input.aim.y = Math.sin(ang);
+
+// Fallback for desktop testing
+canvas.addEventListener('mousemove', (e) => {
+    if(e.buttons === 1) {
+        input.x = e.clientX;
+        input.y = e.clientY;
+        input.firing = true;
+    } else {
+        input.firing = false;
     }
 });
-window.addEventListener('mousedown', () => { AudioSys.init(); input.aim.active=true; });
-window.addEventListener('mouseup', () => input.aim.active=false);
 
 
-// --- LOGIC ---
+/**
+ * GAME LOGIC
+ */
+function startGame() {
+    gameRunning = true;
+    // Reset positions
+    players.p1.x = width / 2;
+    players.p1.y = height - 100;
+    if(!isHost) {
+        // Client starts logic instantly, but relies on host for true state
+        document.getElementById('lobby').classList.add('hidden');
+    }
+    loop();
+}
 
-const WEAPONS = [
-    { name:'PULSE', rate:10, count:1, spread:0, speed:12, dmg:20 },
-    { name:'SPREAD', rate:25, count:3, spread:0.3, speed:10, dmg:12 },
-    { name:'CANNON', rate:40, count:1, spread:0, speed:18, dmg:60 }
-];
+function showGameOver() {
+    gameRunning = false;
+    document.getElementById('ui-layer').style.pointerEvents = 'auto';
+    document.getElementById('lobby').classList.remove('hidden');
+    document.getElementById('host-ui').classList.add('hidden');
+    document.getElementById('client-ui').classList.add('hidden');
+    document.getElementById('game-over-ui').classList.remove('hidden');
+    document.getElementById('final-score').innerText = "Final Score: " + score;
+}
 
-function updateWeaponUI() {
-    document.getElementById('weaponEl').innerText = WEAPONS[input.weapon].name;
+function spawnEnemy() {
+    const size = 30 + Math.random() * 20;
+    enemies.push({
+        x: Math.random() * (width - size),
+        y: -size,
+        w: size,
+        h: size,
+        hp: Math.floor(1 + score / 500),
+        speed: 2 + Math.random() * 2 + (score/2000)
+    });
+}
+
+function spawnPowerup(x, y) {
+    const types = ['spread', 'speed'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    powerups.push({
+        x: x, y: y, r: 10, type: type, vy: 2,
+        color: type === 'spread' ? '#ffff00' : '#00ff00'
+    });
+}
+
+function fireBullet(playerKey) {
+    const p = players[playerKey];
+    if (!p.active) return;
+    
+    // Simple cooldown based on frame check inside update is handled by randomness or timer usually, 
+    // but here we just fire every 10 frames to keep code short
+    if (frames % 10 === 0) {
+        if (p.weaponLevel === 1) {
+            bullets.push({ x: p.x, y: p.y - 20, vx: 0, vy: -10, color: p.color, owner: playerKey });
+        } else {
+            // Spread shot
+            bullets.push({ x: p.x, y: p.y - 20, vx: 0, vy: -10, color: p.color, owner: playerKey });
+            bullets.push({ x: p.x, y: p.y - 20, vx: -3, vy: -9, color: p.color, owner: playerKey });
+            bullets.push({ x: p.x, y: p.y - 20, vx: 3, vy: -9, color: p.color, owner: playerKey });
+        }
+    }
 }
 
 function update() {
-    if(!game.active) return;
-    const cfg = CONFIG[currentDiff];
+    if (!gameRunning) return;
+    frames++;
 
-    // Local Player Logic
-    const p = game.players[game.myId];
-    if(p && p.hp > 0) {
-        p.x += input.move.x * 5;
-        p.y += input.move.y * 5;
-        p.x = Math.max(20, Math.min(W-20, p.x));
-        p.y = Math.max(20, Math.min(H-20, p.y));
-
-        if(input.aim.active) {
-            const w = WEAPONS[input.weapon];
-            const now = Date.now();
-            if(!p.lastShot || now - p.lastShot > (1000/60)*w.rate) {
-                p.lastShot = now;
-                AudioSys.sfx.shoot();
-                
-                // If Host/Solo, create bullet. If Client, send fire request.
-                if(game.mode !== 'client') {
-                    const ang = Math.atan2(input.aim.y, input.aim.x);
-                    for(let i=0; i<w.count; i++) {
-                        const a = ang - (w.spread*(w.count-1))/2 + (w.spread*i);
-                        game.bullets.push({
-                            x:p.x, y:p.y, vx:Math.cos(a)*w.speed, vy:Math.sin(a)*w.speed,
-                            c:p.color, dmg:w.dmg, owner:game.myId
-                        });
-                    }
-                    // Recoil
-                    p.x -= Math.cos(ang)*2; p.y -= Math.sin(ang)*2;
-                }
-            }
-        }
-    }
-
-    // Host Logic
-    if(game.mode !== 'client') {
-        // Spawn
-        if(Math.random() < cfg.spawnRate + (game.wave*0.002)) {
-            const edge = Math.floor(Math.random()*4);
-            let ex, ey;
-            if(edge==0){ex=Math.random()*W;ey=-30;}
-            if(edge==1){ex=W+30;ey=Math.random()*H;}
-            if(edge==2){ex=Math.random()*W;ey=H+30;}
-            if(edge==3){ex=-30;ey=Math.random()*H;}
-            
-            game.enemies.push({
-                x:ex, y:ey, 
-                hp: (30 + (game.wave*5)) * cfg.enemyHp,
-                maxHp: (30 + (game.wave*5)) * cfg.enemyHp,
-                spd: (1.5 + (game.wave*0.1)) * cfg.enemySpd
-            });
+    // --- HOST LOGIC ---
+    if (isHost) {
+        // Update Player 1 (Host) Input
+        if (input.firing) {
+            players.p1.x += (input.x - players.p1.x) * 0.2;
+            players.p1.y += (input.y - players.p1.y) * 0.2;
+            fireBullet('p1');
         }
 
-        // Update Enemies
-        game.enemies.forEach(e => {
-            // Find target
-            let target = null, dist = 9999;
-            for(let id in game.players) {
-                const pl = game.players[id];
-                if(pl.hp > 0) {
-                    const d = Math.hypot(pl.x-e.x, pl.y-e.y);
-                    if(d < dist) { dist = d; target = pl; }
-                }
-            }
-            if(target) {
-                const ang = Math.atan2(target.y-e.y, target.x-e.x);
-                e.x += Math.cos(ang)*e.spd; e.y += Math.sin(ang)*e.spd;
-            } else {
-                e.y += e.spd;
-            }
+        // Auto-fire for P2 if connected
+        if (players.p2.active && frames % 10 === 0) fireBullet('p2');
+
+        // Spawn Enemies
+        if (frames % 60 === 0) spawnEnemy();
+
+        // Update Bullets
+        bullets = bullets.filter(b => b.y > -50 && b.y < height && b.x > -50 && b.x < width + 50);
+        bullets.forEach(b => {
+            b.x += b.vx;
+            b.y += b.vy;
         });
 
-        // Collisions
-        // Bullet vs Enemy
-        for(let i=game.bullets.length-1; i>=0; i--) {
-            let b = game.bullets[i];
-            b.x += b.vx; b.y += b.vy;
-            if(b.x<0||b.x>W||b.y<0||b.y>H) { game.bullets.splice(i,1); continue; }
+        // Update Enemies
+        enemies.forEach((e, ei) => {
+            e.y += e.speed;
             
-            for(let j=game.enemies.length-1; j>=0; j--) {
-                let e = game.enemies[j];
-                if(Math.hypot(b.x-e.x, b.y-e.y) < 25) {
-                    e.hp -= b.dmg;
-                    // Spark
-                    game.particles.push({x:b.x, y:b.y, c:b.c, v:{x:(Math.random()-0.5)*5, y:(Math.random()-0.5)*5}, life:1});
-                    game.bullets.splice(i,1);
+            // Collision: Enemy vs Bullets
+            bullets.forEach((b, bi) => {
+                if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
+                    e.hp--;
+                    // Remove bullet (mark for delete)
+                    b.y = -100; 
                     
-                    if(e.hp <= 0) {
-                        game.enemies.splice(j,1);
-                        game.score += 50;
-                        game.shake = 5;
-                        AudioSys.sfx.boom();
-                        // Explosion
-                        for(let k=0;k<8;k++) game.particles.push({x:e.x, y:e.y, c:'#ff5500', v:{x:(Math.random()-0.5)*10, y:(Math.random()-0.5)*10}, life:1.5});
-                    }
-                    break;
-                }
-            }
-        }
-
-        // Enemy vs Player
-        for(let j=game.enemies.length-1; j>=0; j--) {
-            let e = game.enemies[j];
-            for(let id in game.players) {
-                let pl = game.players[id];
-                if(pl.hp > 0 && Math.hypot(e.x-pl.x, e.y-pl.y) < 30) {
-                    pl.hp -= 20;
-                    game.enemies.splice(j,1);
-                    game.shake = 15;
-                    AudioSys.sfx.boom();
-                    if(pl.hp <= 0) {
-                        pl.hp = 0;
-                        // Player death particles
-                        for(let k=0;k<20;k++) game.particles.push({x:pl.x, y:pl.y, c:pl.color, v:{x:(Math.random()-0.5)*15, y:(Math.random()-0.5)*15}, life:2});
+                    if (e.hp <= 0) {
+                        e.y = height + 100; // Kill enemy
+                        score += 10;
+                        // Chance for powerup
+                        if (Math.random() < 0.1) spawnPowerup(e.x + e.w/2, e.y);
                     }
                 }
-            }
-        }
+            });
 
-        // Wave
-        if(game.score > game.wave * 1500) {
-            game.wave++;
-            document.getElementById('waveEl').innerText = "WAVE " + game.wave;
-            AudioSys.sfx.powerup();
-        }
+            // Collision: Enemy vs Players
+            ['p1', 'p2'].forEach(pk => {
+                const p = players[pk];
+                if(p.active && Math.abs(p.x - (e.x + e.w/2)) < 30 && Math.abs(p.y - (e.y + e.h/2)) < 30) {
+                    // Game Over logic
+                   showGameOver();
+                   if(isConnected) conn.send({ type: 'state', gameOver: true });
+                }
+            });
+        });
 
-        // Broadcast State
-        if(game.mode === 'host') {
-            const packet = { t:'state', pl:game.players, en:game.enemies, bu:game.bullets, sc:game.score, wv:game.wave };
-            conns.forEach(c => c.send(packet));
-        }
-    } else {
-        // Client Input
-        if(conn && conn.open) {
+        // Cleanup dead entities
+        enemies = enemies.filter(e => e.y < height);
+        bullets = bullets.filter(b => b.y !== -100);
+
+        // Powerups
+        powerups.forEach(p => {
+            p.y += p.vy;
+            ['p1', 'p2'].forEach(pk => {
+                const ply = players[pk];
+                if (ply.active && Math.abs(ply.x - p.x) < 30 && Math.abs(ply.y - p.y) < 30) {
+                    ply.weaponLevel = 2; // Upgrade weapon
+                    p.y = height + 100; // Remove powerup
+                    setTimeout(() => ply.weaponLevel = 1, 5000); // Reset after 5s
+                }
+            });
+        });
+        powerups = powerups.filter(p => p.y < height);
+
+        // Network Sync (Host -> Client)
+        if (isConnected) {
+            // Send normalized coordinates (0-1) to handle different screen sizes
             conn.send({
-                t:'input', 
-                x:game.players[game.myId].x, 
-                y:game.players[game.myId].y,
-                fire:input.aim.active,
-                ax:input.aim.x, ay:input.aim.y,
-                w:input.weapon
+                type: 'state',
+                score: score,
+                p1: { x: players.p1.x / width, y: players.p1.y / height, active: players.p1.active },
+                p2: { x: players.p2.x / width, y: players.p2.y / height, active: players.p2.active },
+                bullets: bullets, // Sending full objects (optimize in prod)
+                enemies: enemies,
+                powerups: powerups,
+                gameOver: false
             });
         }
-    }
-
-    // UI Updates
-    document.getElementById('scoreEl').innerText = game.score;
-    if(game.players[game.myId]) {
-        const hpPct = (game.players[game.myId].hp / CONFIG[currentDiff].playerHp) * 100;
-        document.getElementById('hpEl').style.width = Math.max(0, hpPct) + "%";
+    } 
+    
+    // --- CLIENT LOGIC ---
+    else {
+        // Client sends input to Host
+        if (input.firing) {
+            if (isConnected) {
+                // Send normalized input position
+                conn.send({ type: 'input', x: input.x / width, y: input.y / height });
+            }
+        }
     }
 }
 
 function draw() {
-    ctx.fillStyle = '#050508';
-    ctx.fillRect(0,0,W,H);
+    // Clear screen
+    ctx.fillStyle = '#050510';
+    ctx.fillRect(0, 0, width, height);
 
-    // Shake
-    if(game.shake > 0) {
-        ctx.save();
-        ctx.translate((Math.random()-0.5)*game.shake, (Math.random()-0.5)*game.shake);
-        game.shake *= 0.9;
-        if(game.shake < 1) game.shake = 0;
+    // Draw Stars (Simple background effect)
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    for(let i=0; i<20; i++) {
+        const sx = (Date.now()/5 + i*100) % width;
+        const sy = (Date.now()/2 + i*75) % height;
+        ctx.fillRect(sx, sy, 2, 2);
     }
 
-    // Background Grid (Moving)
-    ctx.strokeStyle = '#111122';
-    ctx.lineWidth = 1;
-    const offset = (Date.now()*0.1)%50;
-    ctx.beginPath();
-    for(let x=0; x<W; x+=50) { ctx.moveTo(x,0); ctx.lineTo(x,H); }
-    for(let y=offset; y<H; y+=50) { ctx.moveTo(0,y); ctx.lineTo(W,y); }
-    ctx.stroke();
-
-    ctx.globalCompositeOperation = 'lighter';
-
-    // Particles
-    for(let i=game.particles.length-1; i>=0; i--) {
-        let p = game.particles[i];
-        ctx.fillStyle = p.c;
-        ctx.beginPath(); ctx.arc(p.x, p.y, 3*p.life, 0, Math.PI*2); ctx.fill();
-        p.x += p.v.x; p.y += p.v.y;
-        p.life -= 0.05;
-        if(p.life <= 0) game.particles.splice(i,1);
-    }
-
-    // Bullets
-    game.bullets.forEach(b => {
-        ctx.shadowColor = b.c; ctx.shadowBlur = 10; ctx.fillStyle = b.c;
-        ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
-    });
-
-    // Enemies
-    game.enemies.forEach(e => {
-        ctx.shadowColor = '#f00'; ctx.shadowBlur = 15; ctx.strokeStyle = '#f00'; ctx.lineWidth = 2;
-        ctx.save(); ctx.translate(e.x, e.y);
-        ctx.rotate(Date.now()*0.005);
-        ctx.beginPath(); 
-        ctx.moveTo(15,0); ctx.lineTo(-10,10); ctx.lineTo(-10,-10); ctx.closePath(); 
-        ctx.stroke();
-        ctx.restore();
-    });
-
-    // Players
-    for(let id in game.players) {
-        const p = game.players[id];
-        if(p.active && p.hp > 0) {
-            ctx.shadowColor = p.color; ctx.shadowBlur = 20; ctx.strokeStyle = p.color; ctx.lineWidth = 3;
-            ctx.fillStyle = '#000';
-            ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            
-            // ID
-            ctx.shadowBlur=0; ctx.fillStyle='#fff'; ctx.font='10px Orbitron'; ctx.textAlign='center';
-            ctx.fillText("P"+(parseInt(id)+1), p.x, p.y+4);
-        }
-    }
-
-    if(game.shake > 0) ctx.restore();
-    ctx.globalCompositeOperation = 'source-over';
-    
-    if(game.active) requestAnimationFrame(loop);
-}
-
-function loop() { update(); draw(); if(game.active) requestAnimationFrame(loop); }
-
-
-// --- NETWORKING & MENUS ---
-let peer, conn, conns = [];
-
-function initGame() {
-    AudioSys.init();
-    
-    // Set intensity based on diff
-    let intensity = 2;
-    if(currentDiff === 'easy') intensity = 1;
-    if(currentDiff === 'hard') intensity = 3;
-    AudioSys.startBGM(intensity);
-
-    game.players[game.myId] = { 
-        x: W/2, y: H/2, 
-        hp: CONFIG[currentDiff].playerHp, 
-        active: true, 
-        color: COLORS[game.myId] 
-    };
-
-    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-    document.getElementById('ui-layer').classList.remove('hidden');
-    game.active = true;
-    loop();
-}
-
-function startGame(mode) {
-    game.mode = mode;
-    game.myId = 0;
-    if(mode === 'host') {
-        conns.forEach(c => c.send({ t:'start', diff: currentDiff }));
-    }
-    initGame();
-}
-
-function setupHost() {
-    game.mode = 'host';
-    game.myId = 0;
-    document.getElementById('menu-screen').classList.add('hidden');
-    document.getElementById('lobby-screen').classList.remove('hidden');
-    
-    peer = new Peer();
-    peer.on('open', id => {
-        const url = window.location.href.split('?')[0] + '?join=' + id;
-        document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`;
-    });
-    
-    peer.on('connection', c => {
-        conns.push(c);
-        const pid = conns.length;
-        game.players[pid] = { active:true, color:COLORS[pid] };
-        document.getElementById('lobby-msg').innerText = `${pid} PILOTS CONNECTED`;
+    // Draw Entities
+    if(isHost || (!isHost && isConnected)) {
         
-        c.on('open', () => c.send({ t:'welcome', id:pid }));
-        c.on('data', d => {
-            if(d.t === 'input') {
-                const p = game.players[pid];
-                if(p) {
-                    p.x = d.x; p.y = d.y;
-                    if(d.fire) {
-                        const w = WEAPONS[d.w];
-                        const now = Date.now();
-                        if(!p.lastShot || now-p.lastShot > (1000/60)*w.rate) {
-                            p.lastShot = now;
-                            AudioSys.sfx.shoot();
-                            const ang = Math.atan2(d.ay, d.ax);
-                            for(let i=0; i<w.count; i++) {
-                                const a = ang - (w.spread*(w.count-1))/2 + (w.spread*i);
-                                game.bullets.push({ x:p.x, y:p.y, vx:Math.cos(a)*w.speed, vy:Math.sin(a)*w.speed, c:p.color, dmg:w.dmg, owner:pid });
-                            }
-                        }
-                    }
-                }
+        // Powerups
+        powerups.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.fillText("P", p.x-4, p.y+4);
+        });
+
+        // Bullets
+        bullets.forEach(b => {
+            ctx.fillStyle = b.color;
+            ctx.fillRect(b.x - 2, b.y, 4, 10);
+        });
+
+        // Enemies
+        ctx.fillStyle = '#00ff00';
+        enemies.forEach(e => {
+            // Draw Alien shape (simple rect with eyes)
+            ctx.fillStyle = '#33cc33';
+            ctx.fillRect(e.x, e.y, e.w, e.h);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(e.x + 5, e.y + 10, 5, 5); // Eye L
+            ctx.fillRect(e.x + e.w - 10, e.y + 10, 5, 5); // Eye R
+        });
+
+        // Players
+        ['p1', 'p2'].forEach(pk => {
+            const p = players[pk];
+            if (p.active) {
+                ctx.fillStyle = p.color;
+                // Draw Ship (Triangle)
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y - 20);
+                ctx.lineTo(p.x - 20, p.y + 20);
+                ctx.lineTo(p.x + 20, p.y + 20);
+                ctx.fill();
+                
+                // Engine flame
+                ctx.fillStyle = 'orange';
+                ctx.beginPath();
+                ctx.moveTo(p.x - 10, p.y + 20);
+                ctx.lineTo(p.x + 10, p.y + 20);
+                ctx.lineTo(p.x, p.y + 30 + Math.random()*10);
+                ctx.fill();
             }
         });
-    });
+    }
+    
+    document.getElementById('score-board').innerText = "SCORE: " + score;
 }
 
-// Client
-const params = new URLSearchParams(window.location.search);
-const joinId = params.get('join');
-if(joinId) {
-    game.mode = 'client';
-    document.getElementById('menu-screen').classList.add('hidden');
-    document.getElementById('wait-screen').classList.remove('hidden');
-    
-    peer = new Peer();
-    peer.on('open', () => {
-        conn = peer.connect(joinId);
-        conn.on('data', d => {
-            if(d.t === 'welcome') {
-                game.myId = d.id;
-            }
-            if(d.t === 'start') {
-                currentDiff = d.diff;
-                initGame();
-            }
-            if(d.t === 'state') {
-                game.enemies = d.en;
-                game.bullets = d.bu;
-                game.score = d.sc;
-                game.wave = d.wv;
-                for(let id in d.pl) {
-                    if(parseInt(id) !== game.myId) game.players[id] = d.pl[id];
-                    else game.players[game.myId].hp = d.pl[id].hp;
-                }
-            }
-        });
-    });
+function loop() {
+    update();
+    draw();
+    if(gameRunning) requestAnimationFrame(loop);
 }
+
+// Start Init
+initNetwork();
 
 </script>
 </body>
