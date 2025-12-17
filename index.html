@@ -3,46 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Alien Invaders - Mobile</title>
+    <title>Neon Invaders: Twin Stick</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #000;
+            background-color: #050505;
             color: #fff;
-            font-family: 'Press Start 2P', monospace;
-            touch-action: none; /* Prevent browser zooming/scrolling */
+            font-family: 'Orbitron', sans-serif;
+            touch-action: none; /* Critical for mobile joysticks */
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         #gameCanvas {
             display: block;
-            width: 100%;
-            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
 
-        /* UI Overlays */
+        /* UI Overlay Layer */
         #ui-layer {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; /* Let touches pass through to controls */
+            z-index: 10;
+            pointer-events: none; /* Allow touches to pass to canvas */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
-        #score-board {
-            padding: 10px;
-            font-size: 16px;
+        #score-display {
+            padding: 20px;
+            font-size: 24px;
             text-align: left;
-            text-shadow: 2px 2px #000;
+            text-shadow: 0 0 10px #0ff;
+            color: #0ff;
         }
 
-        #start-screen, #game-over-screen {
+        #health-bar-container {
+            width: 200px;
+            height: 10px;
+            border: 2px solid #0ff;
+            margin: 20px;
+            position: relative;
+        }
+        
+        #health-fill {
+            height: 100%;
+            width: 100%;
+            background: #0ff;
+            box-shadow: 0 0 10px #0ff;
+            transition: width 0.2s;
+        }
+
+        /* Screens */
+        .screen {
             position: absolute;
             top: 0;
             left: 0;
@@ -54,150 +77,111 @@
             justify-content: center;
             align-items: center;
             pointer-events: auto;
-            z-index: 10;
+            z-index: 20;
+            backdrop-filter: blur(5px);
         }
 
-        h1 { font-size: 40px; color: #0f0; margin-bottom: 20px; text-align: center; }
-        p { font-size: 14px; color: #ccc; text-align: center; line-height: 1.5; margin-bottom: 30px; }
-        button.btn-main {
-            padding: 15px 30px;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 16px;
-            background: #fff;
-            color: #000;
-            border: 4px solid #0f0;
-            cursor: pointer;
-        }
-
-        /* Touch Controls */
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            height: 100px;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            box-sizing: border-box;
-            pointer-events: auto;
-            z-index: 5;
-        }
-
-        .control-group {
-            display: flex;
-            gap: 20px;
-        }
-
-        .touch-btn {
-            width: 80px;
-            height: 80px;
-            background: rgba(255, 255, 255, 0.15);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            color: rgba(255, 255, 255, 0.7);
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        .touch-btn:active {
-            background: rgba(0, 255, 0, 0.3);
-            border-color: #0f0;
-        }
-
-        .fire-btn {
-            border-color: rgba(255, 0, 0, 0.3);
-        }
-        .fire-btn:active {
-            background: rgba(255, 0, 0, 0.3);
-            border-color: #f00;
-        }
-
-        /* Orientation Warning */
-        #rotate-warning {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            z-index: 100;
-            justify-content: center;
-            align-items: center;
+        h1 {
+            font-size: 40px;
+            color: #fff;
+            text-shadow: 0 0 20px #0ff, 0 0 40px #00f;
+            margin: 0 0 20px 0;
             text-align: center;
-            flex-direction: column;
+            line-height: 1.2;
         }
 
-        @media (orientation: portrait) {
-            #rotate-warning { display: flex; }
-            #game-container { display: none; }
+        p {
+            color: #aaa;
+            text-align: center;
+            max-width: 80%;
+            margin-bottom: 40px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: bold;
+            background: transparent;
+            color: #0ff;
+            border: 2px solid #0ff;
+            border-radius: 30px;
+            cursor: pointer;
+            text-shadow: 0 0 10px #0ff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+            transition: all 0.2s;
+        }
+
+        .btn:active {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 30px #0ff;
         }
 
         .hidden { display: none !important; }
+
+        /* PC Instructions */
+        .pc-hint {
+            font-size: 12px;
+            color: #555;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Landscape Warning -->
-    <div id="rotate-warning">
-        <h1 style="color: yellow; font-size: 20px;">PLEASE ROTATE DEVICE</h1>
-        <p>Landscape mode required for controls.</p>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div id="score-display">0</div>
+            <div id="health-bar-container"><div id="health-fill"></div></div>
+        </div>
     </div>
 
-    <!-- Game Container -->
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+        <h1>NEON<br>INVADERS</h1>
+        <p>
+            <strong>MOBILE:</strong><br>
+            Left Side: Drag to Move<br>
+            Right Side: Drag to Aim & Fire
+        </p>
+        <button class="btn" id="start-btn">ENGAGE</button>
+        <div class="pc-hint">PC: WASD to Move, Arrows to Shoot</div>
+    </div>
 
-        <div id="ui-layer">
-            <div id="score-board">SCORE: 0</div>
-            
-            <div id="controls">
-                <div class="control-group">
-                    <div class="touch-btn" id="btn-left">◄</div>
-                    <div class="touch-btn" id="btn-right">►</div>
-                </div>
-                <div class="control-group">
-                    <div class="touch-btn fire-btn" id="btn-fire">●</div>
-                </div>
-            </div>
-        </div>
-
-        <div id="start-screen">
-            <h1>INVADERS</h1>
-            <p>Tap arrows to Move.<br>Tap red button to Fire.</p>
-            <button class="btn-main" id="start-btn">START GAME</button>
-        </div>
-
-        <div id="game-over-screen" class="hidden">
-            <h1 style="color: red;">GAME OVER</h1>
-            <p id="final-score">Score: 0</p>
-            <button class="btn-main" id="restart-btn">TRY AGAIN</button>
-        </div>
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="screen hidden">
+        <h1 style="color: #f05; text-shadow: 0 0 20px #f05;">CRITICAL<br>FAILURE</h1>
+        <p id="final-score">Score: 0</p>
+        <button class="btn" id="restart-btn" style="border-color: #f05; color: #f05;">REBOOT SYSTEM</button>
     </div>
 
     <script>
-        // --- Setup ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Game State
-        let gameRunning = false;
-        let score = 0;
-        let lastTime = 0;
-        
-        // Inputs
-        const keys = { left: false, right: false, fire: false };
-        
-        // Haptics Helper (Mild)
-        function vibrate(ms) {
-            if (navigator.vibrate) {
-                navigator.vibrate(ms);
+        // --- Configuration ---
+        const config = {
+            playerSpeed: 250,
+            bulletSpeed: 600,
+            enemySpeed: 80,
+            fireRate: 0.15, // Seconds between shots
+            colors: {
+                player: '#0ff',
+                enemy: '#f05',
+                bullet: '#ff0',
+                bg: '#050505'
             }
-        }
+        };
+
+        let lastTime = 0;
+        let score = 0;
+        let gameRunning = false;
+        let wave = 1;
 
         // --- Resize Handling ---
         function resize() {
@@ -207,263 +191,49 @@
         window.addEventListener('resize', resize);
         resize();
 
+        // --- Haptics ---
+        function vibrate(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        // --- Input State ---
+        const input = {
+            move: { x: 0, y: 0, active: false, originX: 0, originY: 0, currX: 0, currY: 0 },
+            aim: { x: 0, y: 0, active: false, originX: 0, originY: 0, currX: 0, currY: 0 },
+            keys: { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false }
+        };
+
         // --- Game Entities ---
-        
         const player = {
-            width: 40,
-            height: 25,
-            x: 0,
-            y: 0,
-            speed: 300, // pixels per second
-            color: '#0f0',
-            cooldown: 0,
-            init: function() {
-                this.x = canvas.width / 2 - this.width / 2;
-                this.y = canvas.height - 120; // Above controls
+            x: 0, y: 0, radius: 15, angle: 0, hp: 100, maxHp: 100, cooldown: 0,
+            reset: function() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height * 0.8;
+                this.hp = 100;
                 this.cooldown = 0;
-            },
-            update: function(dt) {
-                if (keys.left) this.x -= this.speed * dt;
-                if (keys.right) this.x += this.speed * dt;
-
-                // Wall collision
-                if (this.x < 0) this.x = 0;
-                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
-
-                // Shooting
-                if (this.cooldown > 0) this.cooldown -= dt;
-                if (keys.fire && this.cooldown <= 0) {
-                    bullets.push({
-                        x: this.x + this.width / 2 - 2,
-                        y: this.y,
-                        width: 4,
-                        height: 10,
-                        speed: -500, // Negative goes up
-                        color: '#ff0',
-                        type: 'player'
-                    });
-                    this.cooldown = 0.4; // Fire rate
-                    vibrate(8); // Mild tap
-                }
-            },
-            draw: function() {
-                ctx.fillStyle = this.color;
-                // Draw a simple ship shape
-                ctx.beginPath();
-                ctx.moveTo(this.x + this.width/2, this.y);
-                ctx.lineTo(this.x + this.width, this.y + this.height);
-                ctx.lineTo(this.x, this.y + this.height);
-                ctx.fill();
+                updateHealthUI();
             }
         };
 
         let bullets = [];
+        let enemies = [];
         let particles = [];
-        let invaders = [];
-        
-        // Invader Logic
-        const invaderConfig = {
-            rows: 4,
-            cols: 8,
-            width: 30,
-            height: 20,
-            padding: 15,
-            startX: 50,
-            startY: 50,
-            speedX: 60, // Easy speed
-            dropY: 20,
-            direction: 1 // 1 right, -1 left
-        };
+        let stars = [];
 
-        function initInvaders() {
-            invaders = [];
-            // Adjust cols based on screen width
-            const cols = Math.floor((canvas.width - 100) / (invaderConfig.width + invaderConfig.padding));
-            const actualCols = Math.min(cols, 8); // Max 8 cols
-            
-            for (let r = 0; r < invaderConfig.rows; r++) {
-                for (let c = 0; c < actualCols; c++) {
-                    invaders.push({
-                        x: invaderConfig.startX + c * (invaderConfig.width + invaderConfig.padding),
-                        y: invaderConfig.startY + r * (invaderConfig.height + invaderConfig.padding),
-                        width: invaderConfig.width,
-                        height: invaderConfig.height,
-                        row: r,
-                        col: c,
-                        active: true
-                    });
-                }
-            }
-        }
-
-        function updateInvaders(dt) {
-            let hitEdge = false;
-            let lowestY = 0;
-
-            // Move
-            invaders.forEach(inv => {
-                if (!inv.active) return;
-                inv.x += invaderConfig.speedX * invaderConfig.direction * dt;
-                
-                if (inv.y > lowestY) lowestY = inv.y;
-
-                if ((invaderConfig.direction === 1 && inv.x + inv.width > canvas.width - 10) ||
-                    (invaderConfig.direction === -1 && inv.x < 10)) {
-                    hitEdge = true;
-                }
-
-                // AI Shooting (Easy Mode: Low probability)
-                if (Math.random() < 0.0005) { // very low chance per frame
-                    bullets.push({
-                        x: inv.x + inv.width / 2,
-                        y: inv.y + inv.height,
-                        width: 4,
-                        height: 10,
-                        speed: 200, // Slow bullet speed for easy mode
-                        color: '#f00',
-                        type: 'enemy'
-                    });
-                }
-            });
-
-            if (hitEdge) {
-                invaderConfig.direction *= -1;
-                invaders.forEach(inv => {
-                    inv.y += invaderConfig.dropY;
-                });
-            }
-
-            // Game Over check (invaders reached bottom)
-            if (lowestY + invaderConfig.height >= player.y) {
-                gameOver();
-            }
-
-            // Win condition (respawn if empty)
-            if (invaders.filter(i => i.active).length === 0) {
-                score += 1000;
-                invaderConfig.speedX += 10; // Slightly harder next wave
-                initInvaders();
-            }
-        }
-
-        function drawInvaders() {
-            ctx.fillStyle = '#fff';
-            invaders.forEach(inv => {
-                if (!inv.active) return;
-                // Simple Alien Graphic (Rectangle with eyes)
-                ctx.fillRect(inv.x, inv.y, inv.width, inv.height);
-                ctx.fillStyle = '#000';
-                ctx.fillRect(inv.x + 5, inv.y + 5, 5, 5);
-                ctx.fillRect(inv.x + inv.width - 10, inv.y + 5, 5, 5);
-                ctx.fillStyle = '#fff';
-            });
-        }
-
-        // --- Particles (Explosions) ---
-        function createExplosion(x, y, color) {
-            for(let i=0; i<10; i++) {
-                particles.push({
-                    x: x,
-                    y: y,
-                    vx: (Math.random() - 0.5) * 100,
-                    vy: (Math.random() - 0.5) * 100,
-                    life: 0.5,
-                    color: color
+        // --- Stars Background ---
+        function initStars() {
+            stars = [];
+            for(let i=0; i<100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speed: 0.5 + Math.random() * 1.5
                 });
             }
         }
 
-        function updateParticles(dt) {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                let p = particles[i];
-                p.x += p.vx * dt;
-                p.y += p.vy * dt;
-                p.life -= dt;
-                if(p.life <= 0) particles.splice(i, 1);
-            }
-        }
-
-        function drawParticles() {
-            particles.forEach(p => {
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.life * 2;
-                ctx.fillRect(p.x, p.y, 3, 3);
-                ctx.globalAlpha = 1;
-            });
-        }
-
-        // --- Core Loop ---
-        function update(dt) {
-            player.update(dt);
-            updateInvaders(dt);
-            updateParticles(dt);
-
-            // Update Bullets
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                let b = bullets[i];
-                b.y += b.speed * dt;
-
-                // Remove off-screen
-                if (b.y < 0 || b.y > canvas.height) {
-                    bullets.splice(i, 1);
-                    continue;
-                }
-
-                // Collisions
-                if (b.type === 'player') {
-                    // Check hitting invaders
-                    let hit = false;
-                    for (let j = 0; j < invaders.length; j++) {
-                        let inv = invaders[j];
-                        if (inv.active && 
-                            b.x < inv.x + inv.width &&
-                            b.x + b.width > inv.x &&
-                            b.y < inv.y + inv.height &&
-                            b.height + b.y > inv.y) {
-                            
-                            inv.active = false;
-                            hit = true;
-                            score += 100;
-                            document.getElementById('score-board').innerText = 'SCORE: ' + score;
-                            createExplosion(inv.x + inv.width/2, inv.y + inv.height/2, '#fff');
-                            vibrate(15); // Hit vibration
-                            break;
-                        }
-                    }
-                    if (hit) bullets.splice(i, 1);
-                } else {
-                    // Check hitting player
-                    if (b.x < player.x + player.width &&
-                        b.x + b.width > player.x &&
-                        b.y < player.y + player.height &&
-                        b.height + b.y > player.y) {
-                        gameOver();
-                    }
-                }
-            }
-        }
-
-        function draw() {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height); // Clear screen
-
-            // Draw Stars background
-            ctx.fillStyle = '#333';
-            for(let i=0; i<20; i++) {
-                ctx.fillRect((lastTime * 0.05 * (i+1)) % canvas.width, (i*30) % canvas.height, 2, 2);
-            }
-
-            player.draw();
-            drawInvaders();
-            drawParticles();
-
-            // Draw Bullets
-            bullets.forEach(b => {
-                ctx.fillStyle = b.color;
-                ctx.fillRect(b.x, b.y, b.width, b.height);
-            });
-        }
-
+        // --- Main Loop ---
         function loop(timestamp) {
             if (!gameRunning) return;
             const dt = (timestamp - lastTime) / 1000;
@@ -471,54 +241,386 @@
 
             update(dt);
             draw();
-
             requestAnimationFrame(loop);
         }
 
-        // --- Game Flow Control ---
+        // --- Update Logic ---
+        function update(dt) {
+            // 1. Player Movement Logic (Keyboard + Touch)
+            let dx = 0;
+            let dy = 0;
+
+            // Keyboard Movement
+            if (input.keys.w) dy -= 1;
+            if (input.keys.s) dy += 1;
+            if (input.keys.a) dx -= 1;
+            if (input.keys.d) dx += 1;
+
+            // Touch Movement (Virtual Joystick)
+            if (input.move.active) {
+                dx = input.move.x;
+                dy = input.move.y;
+            }
+
+            // Normalize vector
+            const len = Math.sqrt(dx*dx + dy*dy);
+            if (len > 0) {
+                const speed = (len > 1 ? 1 : len) * config.playerSpeed * dt;
+                player.x += (dx / len) * speed;
+                player.y += (dy / len) * speed;
+            }
+
+            // Constrain Player to Screen
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+
+            // 2. Aiming & Shooting Logic
+            let aimX = 0;
+            let aimY = 0;
+            let isFiring = false;
+
+            // Keyboard Aim
+            if (input.keys.up) { aimY = -1; isFiring = true; }
+            else if (input.keys.down) { aimY = 1; isFiring = true; }
+            if (input.keys.left) { aimX = -1; isFiring = true; }
+            else if (input.keys.right) { aimX = 1; isFiring = true; }
+
+            // Touch Aim
+            if (input.aim.active) {
+                aimX = input.aim.x;
+                aimY = input.aim.y;
+                isFiring = true; // Auto-fire on joystick pull
+            }
+
+            // Calculate Angle
+            if (aimX !== 0 || aimY !== 0) {
+                player.angle = Math.atan2(aimY, aimX);
+            }
+
+            // Fire Bullet
+            player.cooldown -= dt;
+            if (isFiring && player.cooldown <= 0) {
+                bullets.push({
+                    x: player.x,
+                    y: player.y,
+                    vx: Math.cos(player.angle) * config.bulletSpeed,
+                    vy: Math.sin(player.angle) * config.bulletSpeed
+                });
+                player.cooldown = config.fireRate;
+                vibrate(5); // Mild tick
+            }
+
+            // 3. Update Bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+
+                // Offscreen removal
+                if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Enemy Collision
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    let e = enemies[j];
+                    let dist = Math.hypot(b.x - e.x, b.y - e.y);
+                    if (dist < e.radius + 5) {
+                        // Hit
+                        createParticles(e.x, e.y, config.colors.enemy);
+                        enemies.splice(j, 1);
+                        bullets.splice(i, 1);
+                        score += 10;
+                        document.getElementById('score-display').innerText = score;
+                        vibrate(10);
+                        break;
+                    }
+                }
+            }
+
+            // 4. Update Enemies (Simple Tracking AI)
+            if (enemies.length < 3 + (wave * 2) && Math.random() < 0.02) {
+                spawnEnemy();
+            }
+
+            enemies.forEach(e => {
+                // Move towards player slowly
+                let angle = Math.atan2(player.y - e.y, player.x - e.x);
+                e.x += Math.cos(angle) * config.enemySpeed * dt;
+                e.y += Math.sin(angle) * config.enemySpeed * dt;
+
+                // Player Collision
+                let dist = Math.hypot(player.x - e.x, player.y - e.y);
+                if (dist < player.radius + e.radius) {
+                    player.hp -= 1; // Drain health
+                    createParticles(player.x + (e.x-player.x)/2, player.y + (e.y-player.y)/2, '#f00');
+                    updateHealthUI();
+                    if (player.hp <= 0) gameOver();
+                    vibrate(50); // Harder hit
+                }
+            });
+
+            // 5. Update Particles & Stars
+            particles.forEach((p, index) => {
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+
+            stars.forEach(s => {
+                s.y += s.speed;
+                if(s.y > canvas.height) {
+                    s.y = 0;
+                    s.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        // --- Drawing ---
+        function draw() {
+            // Clear with trail effect for "Neon" look
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.4)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Stars
+            ctx.fillStyle = '#555';
+            stars.forEach(s => {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // Player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = config.colors.player;
+            ctx.fillStyle = config.colors.player;
+            ctx.beginPath();
+            ctx.moveTo(15, 0);
+            ctx.lineTo(-10, 10);
+            ctx.lineTo(-10, -10);
+            ctx.fill();
+            ctx.restore();
+
+            // Bullets
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = config.colors.bullet;
+            ctx.fillStyle = config.colors.bullet;
+            bullets.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Enemies
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = config.colors.enemy;
+            ctx.strokeStyle = config.colors.enemy;
+            ctx.lineWidth = 2;
+            enemies.forEach(e => {
+                ctx.beginPath();
+                // Draw a retro jagged shape
+                const sides = 6;
+                for(let i=0; i<sides; i++) {
+                    const angle = (Math.PI * 2 / sides) * i + (Date.now() / 200);
+                    const r = e.radius * (1 + Math.sin(Date.now()/100)*0.2); // Pulse
+                    const x = e.x + Math.cos(angle) * r;
+                    const y = e.y + Math.sin(angle) * r;
+                    if(i===0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            });
+
+            // Particles
+            particles.forEach(p => {
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.fillRect(p.x, p.y, 2, 2);
+                ctx.globalAlpha = 1;
+            });
+
+            // Draw Joysticks (Mobile Only)
+            drawJoystick(input.move, 'rgba(0, 255, 255, 0.3)');
+            drawJoystick(input.aim, 'rgba(255, 0, 85, 0.3)');
+        }
+
+        function drawJoystick(stick, color) {
+            if (!stick.active) return;
+            
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.arc(stick.originX, stick.originY, 40, 0, Math.PI*2); // Base
+            ctx.stroke();
+
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(stick.currX, stick.currY, 20, 0, Math.PI*2); // Thumb
+            ctx.fill();
+        }
+
+        // --- Helpers ---
+        function spawnEnemy() {
+            // Spawn outside screen
+            let ex, ey;
+            if(Math.random() > 0.5) {
+                ex = Math.random() * canvas.width;
+                ey = -30;
+            } else {
+                ex = Math.random() > 0.5 ? -30 : canvas.width + 30;
+                ey = Math.random() * canvas.height * 0.5;
+            }
+            enemies.push({ x: ex, y: ey, radius: 15 });
+        }
+
+        function createParticles(x, y, color) {
+            for(let i=0; i<8; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 200,
+                    vy: (Math.random() - 0.5) * 200,
+                    life: 0.5 + Math.random() * 0.5,
+                    color: color
+                });
+            }
+        }
+
+        function updateHealthUI() {
+            const pct = Math.max(0, (player.hp / player.maxHp) * 100);
+            document.getElementById('health-fill').style.width = pct + '%';
+            if(pct < 30) document.getElementById('health-fill').style.background = '#f05';
+            else document.getElementById('health-fill').style.background = '#0ff';
+        }
+
         function startGame() {
+            gameRunning = true;
+            score = 0;
+            bullets = [];
+            enemies = [];
+            particles = [];
+            player.reset();
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-over-screen').classList.add('hidden');
-            score = 0;
-            document.getElementById('score-board').innerText = 'SCORE: 0';
-            
-            // Reset Entities
-            player.init();
-            bullets = [];
-            particles = [];
-            invaderConfig.speedX = 60; // Reset speed
-            initInvaders();
-
-            gameRunning = true;
+            initStars();
             lastTime = performance.now();
             requestAnimationFrame(loop);
         }
 
         function gameOver() {
             gameRunning = false;
-            vibrate([50, 50, 50]); // Long vibration pattern
-            document.getElementById('final-score').innerText = 'Final Score: ' + score;
+            vibrate([100, 50, 100]);
+            document.getElementById('final-score').innerText = 'SCORE: ' + score;
             document.getElementById('game-over-screen').classList.remove('hidden');
         }
 
-        // --- Touch Input Handling ---
-        const btnLeft = document.getElementById('btn-left');
-        const btnRight = document.getElementById('btn-right');
-        const btnFire = document.getElementById('btn-fire');
+        // --- Event Listeners ---
+        
+        // Touch (Joysticks)
+        canvas.addEventListener('touchstart', handleTouch, {passive: false});
+        canvas.addEventListener('touchmove', handleTouch, {passive: false});
+        canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
 
-        const addTouch = (elem, key) => {
-            elem.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
-            elem.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
-            // Mouse fallbacks for testing on PC
-            elem.addEventListener('mousedown', () => keys[key] = true);
-            elem.addEventListener('mouseup', () => keys[key] = false);
-        };
+        function handleTouch(e) {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                const halfWidth = window.innerWidth / 2;
+                
+                // Left side = Move Stick
+                if (t.clientX < halfWidth) {
+                    if (e.type === 'touchstart') {
+                        input.move.active = true;
+                        input.move.originX = t.clientX;
+                        input.move.originY = t.clientY;
+                        input.move.currX = t.clientX;
+                        input.move.currY = t.clientY;
+                        input.move.id = t.identifier;
+                    } else if (input.move.active && input.move.id === t.identifier) {
+                        updateStick(input.move, t.clientX, t.clientY);
+                    }
+                } 
+                // Right side = Aim Stick
+                else {
+                    if (e.type === 'touchstart') {
+                        input.aim.active = true;
+                        input.aim.originX = t.clientX;
+                        input.aim.originY = t.clientY;
+                        input.aim.currX = t.clientX;
+                        input.aim.currY = t.clientY;
+                        input.aim.id = t.identifier;
+                    } else if (input.aim.active && input.aim.id === t.identifier) {
+                        updateStick(input.aim, t.clientX, t.clientY);
+                    }
+                }
+            }
+        }
 
-        addTouch(btnLeft, 'left');
-        addTouch(btnRight, 'right');
-        addTouch(btnFire, 'fire');
+        function updateStick(stick, tx, ty) {
+            const maxDist = 40;
+            const dx = tx - stick.originX;
+            const dy = ty - stick.originY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            // Normalize for visual stick
+            const cappedDist = Math.min(dist, maxDist);
+            const angle = Math.atan2(dy, dx);
+            
+            stick.currX = stick.originX + Math.cos(angle) * cappedDist;
+            stick.currY = stick.originY + Math.sin(angle) * cappedDist;
 
-        // Buttons
+            // Output values (-1 to 1)
+            stick.x = dx / maxDist; // Allow >1 for speed boost feel, but visuals capped
+            stick.y = dy / maxDist;
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (input.move.id === t.identifier) {
+                    input.move.active = false;
+                    input.move.x = 0; input.move.y = 0;
+                }
+                if (input.aim.id === t.identifier) {
+                    input.aim.active = false;
+                    input.aim.x = 0; input.aim.y = 0;
+                }
+            }
+        }
+
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            const k = e.key.toLowerCase();
+            if(k === 'w') input.keys.w = true;
+            if(k === 'a') input.keys.a = true;
+            if(k === 's') input.keys.s = true;
+            if(k === 'd') input.keys.d = true;
+            if(e.key === 'ArrowUp') input.keys.up = true;
+            if(e.key === 'ArrowDown') input.keys.down = true;
+            if(e.key === 'ArrowLeft') input.keys.left = true;
+            if(e.key === 'ArrowRight') input.keys.right = true;
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if(k === 'w') input.keys.w = false;
+            if(k === 'a') input.keys.a = false;
+            if(k === 's') input.keys.s = false;
+            if(k === 'd') input.keys.d = false;
+            if(e.key === 'ArrowUp') input.keys.up = false;
+            if(e.key === 'ArrowDown') input.keys.down = false;
+            if(e.key === 'ArrowLeft') input.keys.left = false;
+            if(e.key === 'ArrowRight') input.keys.right = false;
+        });
+
+        // UI Buttons
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
 
