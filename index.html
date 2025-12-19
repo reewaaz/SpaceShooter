@@ -3,30 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Vector: Space Survivor</title>
+    <title>Twin Stick Shooter Prototype</title>
     <style>
-        :root {
-            --primary: #0ff;
-            --danger: #f05;
-            --ui-bg: rgba(0, 20, 40, 0.5);
-            --border: rgba(255, 255, 255, 0.3);
-        }
-
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505;
+            background-color: #222;
+            color: white;
             font-family: 'Courier New', Courier, monospace;
             touch-action: none; /* Prevents scrolling on mobile */
             user-select: none;
-            -webkit-user-select: none;
         }
 
-        canvas {
+        #gameCanvas {
             display: block;
+            width: 100%;
+            height: 100%;
         }
 
-        /* UI OVERLAYS */
+        /* UI Overlay Layer */
         #ui-layer {
             position: absolute;
             top: 0;
@@ -36,783 +31,644 @@
             pointer-events: none; /* Let touches pass through to canvas controls */
         }
 
-        /* WEAPON SELECTOR (Top Right) */
-        #weapon-hud {
+        /* Weapon Selector */
+        #weapon-selector {
             position: absolute;
             top: 20px;
             right: 20px;
             display: flex;
+            flex-direction: column;
             gap: 10px;
             pointer-events: auto;
         }
 
-        .weapon-slot {
+        .weapon-btn {
             width: 50px;
             height: 50px;
-            border: 2px solid var(--border);
-            background: var(--ui-bg);
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #555;
+            color: #fff;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: white;
-            font-weight: bold;
-            font-size: 20px;
-            transition: 0.2s;
+            font-size: 24px;
             cursor: pointer;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            transition: all 0.2s;
         }
 
-        .weapon-slot.active {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px var(--primary);
-            transform: scale(1.1);
+        .weapon-btn.active {
+            border-color: #0f0;
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 10px #0f0;
         }
 
-        /* MOBILE CONTROLS VISUALS */
+        /* HP Bar */
+        #hp-container {
+            position: absolute;
+            bottom: 30px;
+            right: 180px; /* Positioned to left of right stick */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #hp-bar-bg {
+            width: 150px;
+            height: 20px;
+            background: #333;
+            border: 2px solid white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #hp-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: #0f0;
+            transition: width 0.2s;
+        }
+
+        /* Joystick Visuals (drawn by canvas, but zones defined here) */
         .joystick-zone {
             position: absolute;
+            bottom: 0;
+            width: 50%;
+            height: 50%;
+            pointer-events: auto;
+        }
+        #left-zone { left: 0; }
+        #right-zone { right: 0; }
+
+        /* Joystick Hint Text */
+        .zone-hint {
+            position: absolute;
             bottom: 50px;
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            border: 2px dashed rgba(255, 255, 255, 0.1);
-            display: none; /* Hidden on desktop by default */
-            pointer-events: none; /* Logic handled by JS touch events globally */
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .joystick-knob {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            transform: translate(0, 0);
-        }
-
-        #stick-left { left: 40px; }
-        #stick-right { right: 40px; }
-
-        /* SWITCH BUTTON (Mobile Only - Bottom Right) */
-        #mobile-switch-btn {
-            position: absolute;
-            bottom: 40px;
-            right: 180px; /* To the left of the aim stick */
-            width: 60px;
-            height: 60px;
-            border: 2px solid var(--primary);
-            border-radius: 50%;
-            background: rgba(0, 255, 255, 0.1);
-            color: var(--primary);
-            display: none; /* Visible via JS on touch devices */
-            justify-content: center;
-            align-items: center;
-            font-size: 12px;
-            text-transform: uppercase;
-            pointer-events: auto;
-            backdrop-filter: blur(4px);
-        }
-        
-        #mobile-switch-btn:active {
-            background: var(--primary);
-            color: black;
-        }
-
-        /* START SCREEN */
-        #start-screen, #game-over-screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 100;
-            pointer-events: auto;
-        }
-
-        h1 {
-            font-size: 4rem;
-            text-shadow: 0 0 20px var(--primary);
-            margin-bottom: 10px;
+            width: 100%;
             text-align: center;
-        }
-        
-        p { font-size: 1.2rem; color: #aaa; text-align: center; max-width: 600px;}
-
-        button.main-btn {
-            padding: 15px 40px;
-            font-size: 1.5rem;
-            background: transparent;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-            margin-top: 30px;
-            cursor: pointer;
-            font-family: inherit;
-            box-shadow: 0 0 10px var(--primary);
-            transition: 0.3s;
-        }
-
-        button.main-btn:hover {
-            background: var(--primary);
-            color: #000;
-            box-shadow: 0 0 30px var(--primary);
-        }
-
-        #score-display {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        @media (max-width: 768px) {
-            h1 { font-size: 2.5rem; }
-            .joystick-zone, #mobile-switch-btn { display: flex; }
+            opacity: 0.3;
+            font-size: 14px;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <!-- UI Overlay -->
-    <div id="ui-layer">
-        <div id="score-display">SCORE: 0</div>
-
-        <!-- Weapon HUD (Top Right per sketch) -->
-        <div id="weapon-hud">
-            <div class="weapon-slot active" id="slot-0" onclick="game.switchWeapon(0)">I</div>
-            <div class="weapon-slot" id="slot-1" onclick="game.switchWeapon(1)">II</div>
-            <div class="weapon-slot" id="slot-2" onclick="game.switchWeapon(2)">III</div>
-        </div>
-
-        <!-- Mobile Controls visuals -->
-        <div id="stick-left" class="joystick-zone">
-            <div class="joystick-knob" id="knob-left"></div>
-        </div>
-        <div id="stick-right" class="joystick-zone">
-            <div class="joystick-knob" id="knob-right"></div>
-        </div>
-        
-        <!-- Quick Switch Button (Mobile) -->
-        <div id="mobile-switch-btn" onclick="game.cycleWeapon()">SWITCH</div>
-    </div>
-
-    <!-- Screens -->
-    <div id="start-screen">
-        <h1>NEON VECTOR</h1>
-        <p>Left Stick / WASD to Move<br>Right Stick / Mouse to Aim & Shoot</p>
-        <button class="main-btn" onclick="startGame()">INITIATE</button>
-    </div>
-
-    <div id="game-over-screen" style="display: none;">
-        <h1 style="color: var(--danger); text-shadow: 0 0 20px var(--danger);">CRITICAL FAILURE</h1>
-        <p>Final Score: <span id="final-score">0</span></p>
-        <button class="main-btn" onclick="resetGame()">REBOOT SYSTEM</button>
-    </div>
-
     <canvas id="gameCanvas"></canvas>
 
-    <script>
-        // --- AUDIO ENGINE (Synthesizer) ---
-        const AudioEngine = {
-            ctx: null,
-            init: function() {
-                window.AudioContext = window.AudioContext || window.webkitAudioContext;
-                this.ctx = new AudioContext();
-            },
-            playTone: function(freq, type, duration, vol = 0.1) {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + duration);
-            },
-            shoot: function(type) {
-                if(type === 0) this.playTone(400, 'square', 0.1, 0.05); // Blaster
-                if(type === 1) this.playTone(150, 'sawtooth', 0.2, 0.05); // Shotgun
-                if(type === 2) this.playTone(800, 'sine', 0.1, 0.05); // Sniper
-            },
-            explode: function() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(100, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1, this.ctx.currentTime + 0.5);
-                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.5);
-            },
-            switch: function() {
-                this.playTone(600, 'sine', 0.1, 0.05);
-            },
-            bgmOsc: null,
-            startMusic: function() {
-                if(!this.ctx) return;
-                // Simple looping bassline
-                let notes = [110, 110, 220, 110, 164, 110, 130, 98]; 
-                let noteIndex = 0;
-                setInterval(() => {
-                    if(game.state !== 'playing') return;
-                    this.playTone(notes[noteIndex], 'triangle', 0.2, 0.05);
-                    noteIndex = (noteIndex + 1) % notes.length;
-                }, 250);
-            }
-        };
+    <!-- Invisible Touch Zones -->
+    <div id="left-zone" class="joystick-zone">
+        <div class="zone-hint">MOVE</div>
+    </div>
+    <div id="right-zone" class="joystick-zone">
+        <div class="zone-hint">AIM & SHOOT</div>
+    </div>
 
-        // --- GAME SETUP ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        <div id="weapon-selector">
+            <div class="weapon-btn active" id="btn-rail" onclick="setWeapon('rail')">📏</div> <!-- Rail -->
+            <div class="weapon-btn" id="btn-triple" onclick="setWeapon('triple')">✨</div> <!-- Triple -->
+            <div class="weapon-btn" id="btn-lightning" onclick="setWeapon('lightning')">⚡</div> <!-- Lightning -->
+            <div class="weapon-btn" id="btn-laser" onclick="setWeapon('laser')">🔴</div> <!-- Laser -->
+        </div>
+
+        <div id="hp-container">
+            <span>HP:</span>
+            <div id="hp-bar-bg">
+                <div id="hp-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * TWIN STICK SHOOTER ENGINE
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game State
+let lastTime = 0;
+let score = 0;
+let gameOver = false;
+
+// Input State
+const input = {
+    leftStick: { x: 0, y: 0, active: false, originX: 0, originY: 0, currX: 0, currY: 0 },
+    rightStick: { x: 0, y: 0, active: false, originX: 0, originY: 0, currX: 0, currY: 0 }
+};
+
+// Player Config
+const player = {
+    x: 0,
+    y: 0,
+    radius: 15,
+    speed: 5,
+    angle: 0,
+    hp: 100,
+    maxHp: 100,
+    weapon: 'rail',
+    cooldown: 0
+};
+
+// Weapon Configs
+const weapons = {
+    rail: { color: '#0ff', cooldown: 40, speed: 25, damage: 50, type: 'projectile', piercing: true },
+    triple: { color: '#ff0', cooldown: 15, speed: 12, damage: 15, type: 'spread' },
+    lightning: { color: '#b0f', cooldown: 30, range: 250, damage: 40, type: 'instant' },
+    laser: { color: '#f00', cooldown: 0, range: 800, damage: 1, type: 'beam' } // Low dmg but high tick rate
+};
+
+// Entities
+let bullets = [];
+let enemies = [];
+let particles = [];
+let damageNumbers = [];
+
+// --- RESIZE HANDLING ---
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    // Reset player to center if first run
+    if (player.x === 0) {
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+    }
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- INPUT HANDLING ---
+const leftZone = document.getElementById('left-zone');
+const rightZone = document.getElementById('right-zone');
+
+function handleTouch(e, zoneStr, type) {
+    e.preventDefault();
+    const stick = input[zoneStr];
+    const touch = e.changedTouches[0]; 
+    // Usually we track touch IDs, but for simple split screen zones, simple rect check is enough
+    
+    if (type === 'start') {
+        stick.active = true;
+        stick.originX = touch.clientX;
+        stick.originY = touch.clientY;
+        stick.currX = touch.clientX;
+        stick.currY = touch.clientY;
+        stick.x = 0;
+        stick.y = 0;
+    } else if (type === 'move' && stick.active) {
+        stick.currX = touch.clientX;
+        stick.currY = touch.clientY;
         
-        // Resize handling
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        let dx = stick.currX - stick.originX;
+        let dy = stick.currY - stick.originY;
+        const maxDist = 50;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        // Normalize
+        if (dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
         }
-        window.addEventListener('resize', resize);
-        resize();
+        
+        stick.x = dx / maxDist;
+        stick.y = dy / maxDist;
+    } else if (type === 'end') {
+        stick.active = false;
+        stick.x = 0;
+        stick.y = 0;
+    }
+}
 
-        // Game State
-        const game = {
-            state: 'menu', // menu, playing, gameover
-            score: 0,
-            width: 0,
-            height: 0,
-            shake: 0,
-            lastTime: 0,
-            enemySpawnTimer: 0,
-            enemySpawnRate: 1000,
-            
-            player: {
-                x: 0, y: 0, 
-                vx: 0, vy: 0, 
-                angle: 0,
-                radius: 15,
-                speed: 5,
-                weaponIndex: 0,
-                cooldown: 0,
-                hp: 100
-            },
-            
-            weapons: [
-                { name: 'Blaster', rate: 150, speed: 12, damage: 10, count: 1, spread: 0, color: '#0ff' }, // Rapid
-                { name: 'Spread', rate: 500, speed: 10, damage: 8, count: 5, spread: 0.5, color: '#ff0' }, // Shotgun
-                { name: 'Rail', rate: 800, speed: 20, damage: 50, count: 1, spread: 0, color: '#f0f' }  // Sniper
-            ],
-
-            bullets: [],
-            enemies: [],
-            particles: [],
-            stars: [],
-
-            // Input State
-            keys: {},
-            mouse: { x: 0, y: 0, down: false },
-            joystickLeft: { x: 0, y: 0, active: false, id: null, originX: 0, originY: 0 },
-            joystickRight: { x: 0, y: 0, active: false, id: null, originX: 0, originY: 0 },
-
-            switchWeapon: function(index) {
-                if(this.state !== 'playing') return;
-                this.player.weaponIndex = index;
-                AudioEngine.switch();
-                updateWeaponUI();
-            },
-            cycleWeapon: function() {
-                let next = (this.player.weaponIndex + 1) % 3;
-                this.switchWeapon(next);
-            }
+// Attach listeners helper
+function attachJoystick(elem, zoneName) {
+    elem.addEventListener('touchstart', (e) => handleTouch(e, zoneName, 'start'), {passive: false});
+    elem.addEventListener('touchmove', (e) => handleTouch(e, zoneName, 'move'), {passive: false});
+    elem.addEventListener('touchend', (e) => handleTouch(e, zoneName, 'end'), {passive: false});
+    
+    // Mouse fallback for desktop testing
+    elem.addEventListener('mousedown', (e) => {
+        // Mock touch object
+        const mockE = { 
+            preventDefault: ()=>{}, 
+            changedTouches: [{ clientX: e.clientX, clientY: e.clientY }] 
         };
-
-        function updateWeaponUI() {
-            for(let i=0; i<3; i++) {
-                const el = document.getElementById(`slot-${i}`);
-                if(i === game.player.weaponIndex) el.classList.add('active');
-                else el.classList.remove('active');
-            }
-        }
-
-        // --- INPUT HANDLING ---
-
-        // Keyboard & Mouse
-        window.addEventListener('keydown', e => {
-            game.keys[e.code] = true;
-            if(e.code === 'Digit1') game.switchWeapon(0);
-            if(e.code === 'Digit2') game.switchWeapon(1);
-            if(e.code === 'Digit3') game.switchWeapon(2);
-            if(e.code === 'Space') game.cycleWeapon();
-        });
-        window.addEventListener('keyup', e => game.keys[e.code] = false);
-        window.addEventListener('mousemove', e => {
-            game.mouse.x = e.clientX;
-            game.mouse.y = e.clientY;
-        });
-        window.addEventListener('mousedown', () => game.mouse.down = true);
-        window.addEventListener('mouseup', () => game.mouse.down = false);
-
-        // Touch (Virtual Joysticks)
-        const leftZone = document.getElementById('stick-left');
-        const rightZone = document.getElementById('stick-right');
-        const leftKnob = document.getElementById('knob-left');
-        const rightKnob = document.getElementById('knob-right');
-
-        // Helper to get rect for touch zones
-        const leftRect = leftZone.getBoundingClientRect();
-        const rightRect = rightZone.getBoundingClientRect();
-        const stickRadius = 75; // Half of 150px
-
-        // Determine stick centers dynamically based on CSS layout
-        function getStickCenters() {
-            return {
-                lx: leftRect.left + stickRadius,
-                ly: leftRect.top + stickRadius,
-                rx: rightRect.left + stickRadius,
-                ry: rightRect.top + stickRadius
+        handleTouch(mockE, zoneName, 'start');
+        
+        const moveHandler = (ev) => {
+            const mockMove = { 
+                preventDefault: ()=>{}, 
+                changedTouches: [{ clientX: ev.clientX, clientY: ev.clientY }] 
             };
+            handleTouch(mockMove, zoneName, 'move');
+        };
+        const endHandler = () => {
+            handleTouch({ preventDefault: ()=>{}, changedTouches: []}, zoneName, 'end');
+            window.removeEventListener('mousemove', moveHandler);
+            window.removeEventListener('mouseup', endHandler);
+        };
+        window.addEventListener('mousemove', moveHandler);
+        window.addEventListener('mouseup', endHandler);
+    });
+}
+
+attachJoystick(leftZone, 'leftStick');
+attachJoystick(rightZone, 'rightStick');
+
+// --- GAME LOGIC ---
+
+// Weapon Switching
+window.setWeapon = function(type) {
+    player.weapon = type;
+    document.querySelectorAll('.weapon-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + type).classList.add('active');
+};
+
+function spawnEnemy() {
+    const edge = Math.floor(Math.random() * 4); // 0:top, 1:right, 2:bottom, 3:left
+    let ex, ey;
+    const buffer = 50;
+    
+    if (edge === 0) { ex = Math.random() * canvas.width; ey = -buffer; }
+    else if (edge === 1) { ex = canvas.width + buffer; ey = Math.random() * canvas.height; }
+    else if (edge === 2) { ex = Math.random() * canvas.width; ey = canvas.height + buffer; }
+    else { ex = -buffer; ey = Math.random() * canvas.height; }
+
+    enemies.push({
+        x: ex,
+        y: ey,
+        radius: 15,
+        hp: 30 + (score * 2), // Difficulty scaling
+        speed: 1.5 + (Math.random() * 1),
+        maxHp: 30 + (score * 2)
+    });
+}
+
+function update(dt) {
+    if (gameOver) return;
+
+    // 1. Move Player
+    if (input.leftStick.active) {
+        player.x += input.leftStick.x * player.speed;
+        player.y += input.leftStick.y * player.speed;
+        
+        // Boundaries
+        player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+        player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+    }
+
+    // 2. Aim & Shoot
+    if (input.rightStick.active) {
+        const rx = input.rightStick.x;
+        const ry = input.rightStick.y;
+        if (Math.abs(rx) > 0.1 || Math.abs(ry) > 0.1) {
+            player.angle = Math.atan2(ry, rx);
+            
+            // Fire Weapon
+            if (player.cooldown <= 0) {
+                fireWeapon(rx, ry);
+            }
+        }
+    }
+    if (player.cooldown > 0) player.cooldown--;
+
+    // 3. Update Bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        b.x += Math.cos(b.angle) * b.speed;
+        b.y += Math.sin(b.angle) * b.speed;
+        b.life--;
+
+        // Remove if off screen or dead
+        if (b.life <= 0 || b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+            bullets.splice(i, 1);
+            continue;
         }
 
-        window.addEventListener('touchstart', e => {
-            const centers = getStickCenters();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                // Check Left side
-                if (t.clientX < window.innerWidth / 2) {
-                    if(!game.joystickLeft.active) {
-                        game.joystickLeft.id = t.identifier;
-                        game.joystickLeft.active = true;
-                        updateStick(t, game.joystickLeft, centers.lx, centers.ly, leftKnob);
-                    }
-                } 
-                // Check Right side (excluding UI buttons roughly)
-                else if (t.clientY > 100) { // Avoid top weapon bar
-                    if(!game.joystickRight.active) {
-                        game.joystickRight.id = t.identifier;
-                        game.joystickRight.active = true;
-                        updateStick(t, game.joystickRight, centers.rx, centers.ry, rightKnob);
-                    }
+        // Collision with Enemies
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            let e = enemies[j];
+            let dist = Math.hypot(b.x - e.x, b.y - e.y);
+            if (dist < e.radius + b.radius) {
+                // Hit
+                damageEnemy(e, b.damage);
+                createParticles(e.x, e.y, b.color, 3);
+                
+                if (!b.piercing) {
+                    bullets.splice(i, 1);
+                    break; 
                 }
             }
-        }, {passive: false});
+        }
+    }
 
-        window.addEventListener('touchmove', e => {
-            e.preventDefault(); // Stop scrolling
-            const centers = getStickCenters();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                if (t.identifier === game.joystickLeft.id) {
-                    updateStick(t, game.joystickLeft, centers.lx, centers.ly, leftKnob);
-                }
-                if (t.identifier === game.joystickRight.id) {
-                    updateStick(t, game.joystickRight, centers.rx, centers.ry, rightKnob);
-                }
+    // 4. Update Enemies
+    if (Math.random() < 0.02) spawnEnemy(); // Spawn rate
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        let e = enemies[i];
+        
+        // Move towards player
+        let dx = player.x - e.x;
+        let dy = player.y - e.y;
+        let dist = Math.hypot(dx, dy);
+        
+        e.x += (dx / dist) * e.speed;
+        e.y += (dy / dist) * e.speed;
+
+        // Collision with Player
+        if (dist < player.radius + e.radius) {
+            player.hp -= 1; // Damage over time on contact
+            createParticles(player.x, player.y, '#f00', 1);
+            if (player.hp <= 0) {
+                gameOver = true;
+                setTimeout(() => location.reload(), 2000);
             }
-        }, {passive: false});
+        }
 
-        const resetStick = (stick, knob) => {
-            stick.active = false;
-            stick.id = null;
-            stick.x = 0;
-            stick.y = 0;
-            knob.style.transform = `translate(0px, 0px)`;
-        };
+        if (e.hp <= 0) {
+            createParticles(e.x, e.y, '#fff', 8);
+            score++;
+            enemies.splice(i, 1);
+        }
+    }
 
-        window.addEventListener('touchend', e => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                if (t.identifier === game.joystickLeft.id) resetStick(game.joystickLeft, leftKnob);
-                if (t.identifier === game.joystickRight.id) resetStick(game.joystickRight, rightKnob);
+    // 5. Update Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Update HP UI
+    const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
+    document.getElementById('hp-bar-fill').style.width = hpPct + "%";
+}
+
+function fireWeapon(vx, vy) {
+    const config = weapons[player.weapon];
+    const angle = Math.atan2(vy, vx);
+    
+    player.cooldown = config.cooldown;
+
+    if (config.type === 'projectile') {
+        bullets.push({
+            x: player.x, y: player.y,
+            angle: angle,
+            speed: config.speed,
+            damage: config.damage,
+            color: config.color,
+            radius: 5,
+            life: 100,
+            piercing: config.piercing
+        });
+    } 
+    else if (config.type === 'spread') {
+        for (let i = -1; i <= 1; i++) {
+            bullets.push({
+                x: player.x, y: player.y,
+                angle: angle + (i * 0.25), // ~15 degrees
+                speed: config.speed,
+                damage: config.damage,
+                color: config.color,
+                radius: 4,
+                life: 60,
+                piercing: false
+            });
+        }
+    }
+    else if (config.type === 'instant') {
+        // Lightning: Find closest enemy
+        let nearest = null;
+        let minDist = config.range;
+        
+        enemies.forEach(e => {
+            let d = Math.hypot(e.x - player.x, e.y - player.y);
+            if (d < minDist) {
+                minDist = d;
+                nearest = e;
             }
         });
 
-        function updateStick(touch, stickObj, centerX, centerY, knobElement) {
-            const maxDist = 40; // Max visual movement of knob
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
-            
-            // Normalize input -1 to 1
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            
-            if (dist > stickRadius) {
-                const ratio = stickRadius / dist;
-                dx *= ratio;
-                dy *= ratio;
-            }
-
-            // Visual update
-            const visualDist = Math.min(dist, maxDist);
-            const angle = Math.atan2(dy, dx);
-            const vx = Math.cos(angle) * visualDist;
-            const vy = Math.sin(angle) * visualDist;
-            knobElement.style.transform = `translate(${vx}px, ${vy}px)`;
-
-            // Logic update (normalized -1 to 1)
-            stickObj.x = dx / stickRadius;
-            stickObj.y = dy / stickRadius;
-        }
-
-
-        // --- GAME LOGIC ---
-
-        function initGame() {
-            game.player.x = canvas.width / 2;
-            game.player.y = canvas.height / 2;
-            game.bullets = [];
-            game.enemies = [];
-            game.particles = [];
-            game.score = 0;
-            game.enemySpawnRate = 1000;
-            game.shake = 0;
-            
-            // Generate Stars
-            game.stars = [];
-            for(let i=0; i<100; i++) {
-                game.stars.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 2,
-                    speed: Math.random() * 0.5 + 0.1
-                });
-            }
-        }
-
-        function spawnEnemy() {
-            const edge = Math.floor(Math.random() * 4); // 0:top, 1:right, 2:bottom, 3:left
-            let ex, ey;
-            const size = 20;
-            
-            if(edge === 0) { ex = Math.random() * canvas.width; ey = -size; }
-            else if(edge === 1) { ex = canvas.width + size; ey = Math.random() * canvas.height; }
-            else if(edge === 2) { ex = Math.random() * canvas.width; ey = canvas.height + size; }
-            else { ex = -size; ey = Math.random() * canvas.height; }
-
-            // Types: 0 = Follower (Fast, Low HP), 1 = Tank (Slow, High HP)
-            const type = Math.random() > 0.8 ? 1 : 0;
-            
-            game.enemies.push({
-                x: ex, y: ey,
-                type: type,
-                hp: type === 0 ? 20 : 60,
-                speed: type === 0 ? 2 + Math.random() : 1,
-                size: type === 0 ? 20 : 30,
-                color: type === 0 ? '#f55' : '#f90',
-                angle: 0
+        if (nearest) {
+            damageEnemy(nearest, config.damage);
+            // Visual Effect stored in global particles for rendering
+            particles.push({
+                type: 'lightning',
+                sx: player.x, sy: player.y,
+                ex: nearest.x, ey: nearest.y,
+                life: 5,
+                color: config.color
             });
-        }
-
-        function createParticles(x, y, color, count) {
-            for(let i=0; i<count; i++) {
-                game.particles.push({
-                    x: x, y: y,
-                    vx: (Math.random() - 0.5) * 10,
-                    vy: (Math.random() - 0.5) * 10,
-                    life: 1.0,
-                    color: color
+            // Simple Chain (one jump)
+            let nextNearest = null;
+            let nextMinDist = 200;
+            enemies.forEach(e => {
+                if (e === nearest) return;
+                let d = Math.hypot(e.x - nearest.x, e.y - nearest.y);
+                if (d < nextMinDist) {
+                    nextMinDist = d;
+                    nextNearest = e;
+                }
+            });
+            if (nextNearest) {
+                damageEnemy(nextNearest, config.damage / 2);
+                particles.push({
+                    type: 'lightning',
+                    sx: nearest.x, sy: nearest.y,
+                    ex: nextNearest.x, ey: nextNearest.y,
+                    life: 5,
+                    color: config.color
                 });
             }
         }
+    }
+    else if (config.type === 'beam') {
+        // Laser logic is mostly visual in Draw, but we apply damage here
+        // Raycast logic
+        let hit = false;
+        let endX = player.x + Math.cos(angle) * config.range;
+        let endY = player.y + Math.sin(angle) * config.range;
 
-        function update(dt) {
-            if(game.state !== 'playing') return;
-
-            // --- Player Movement ---
-            let dx = 0, dy = 0;
-
-            // Keyboard
-            if(game.keys['KeyW'] || game.keys['ArrowUp']) dy = -1;
-            if(game.keys['KeyS'] || game.keys['ArrowDown']) dy = 1;
-            if(game.keys['KeyA'] || game.keys['ArrowLeft']) dx = -1;
-            if(game.keys['KeyD'] || game.keys['ArrowRight']) dx = 1;
-
-            // Touch (Joystick) overrides keyboard if active
-            if(game.joystickLeft.active) {
-                dx = game.joystickLeft.x;
-                dy = game.joystickLeft.y;
-            }
-
-            // Apply movement
-            game.player.x += dx * game.player.speed;
-            game.player.y += dy * game.player.speed;
-
-            // Bounds
-            game.player.x = Math.max(game.player.radius, Math.min(canvas.width - game.player.radius, game.player.x));
-            game.player.y = Math.max(game.player.radius, Math.min(canvas.height - game.player.radius, game.player.y));
-
-            // --- Aiming & Shooting ---
-            let aimAngle = 0;
-            let isFiring = false;
-
-            if(game.joystickRight.active) {
-                // Mobile Aim
-                const dist = Math.sqrt(game.joystickRight.x**2 + game.joystickRight.y**2);
-                if(dist > 0.2) { // Deadzone
-                    aimAngle = Math.atan2(game.joystickRight.y, game.joystickRight.x);
-                    game.player.angle = aimAngle;
-                    isFiring = true; // Auto fire on mobile when aiming
-                }
-            } else {
-                // Mouse Aim
-                dx = game.mouse.x - game.player.x;
-                dy = game.mouse.y - game.player.y;
-                aimAngle = Math.atan2(dy, dx);
-                game.player.angle = aimAngle;
-                isFiring = game.mouse.down;
-            }
-
-            // Weapon Cooldown & Fire
-            if(game.player.cooldown > 0) game.player.cooldown -= dt;
+        // Check intersection with enemies
+        for (let e of enemies) {
+            // Simple check: distance to line segment
+            // (Math omitted for brevity, using simple proximity to beam center)
+            // A true raycast against circles is better, but this is a prototype
+            let distToPlayer = Math.hypot(e.x - player.x, e.y - player.y);
+            if (distToPlayer > config.range) continue;
             
-            if(isFiring && game.player.cooldown <= 0) {
-                const w = game.weapons[game.player.weaponIndex];
-                game.player.cooldown = w.rate;
-                AudioEngine.shoot(game.player.weaponIndex);
-                if(navigator.vibrate) navigator.vibrate(20); // Haptic
-
-                // Spawn bullets
-                const startAngle = w.count > 1 ? -w.spread / 2 : 0;
-                const step = w.count > 1 ? w.spread / (w.count - 1) : 0;
-
-                for(let i=0; i<w.count; i++) {
-                    const angleOffset = startAngle + (step * i);
-                    const finalAngle = game.player.angle + angleOffset;
-                    game.bullets.push({
-                        x: game.player.x + Math.cos(finalAngle) * 20,
-                        y: game.player.y + Math.sin(finalAngle) * 20,
-                        vx: Math.cos(finalAngle) * w.speed,
-                        vy: Math.sin(finalAngle) * w.speed,
-                        damage: w.damage,
-                        color: w.color
-                    });
-                }
+            // Check angular difference
+            let angleToEnemy = Math.atan2(e.y - player.y, e.x - player.x);
+            let diff = Math.abs(angle - angleToEnemy);
+            // Normalize angle diff
+            if (diff > Math.PI) diff = 2 * Math.PI - diff;
+            
+            if (diff < 0.1) { // Very narrow cone
+                damageEnemy(e, config.damage);
+                createParticles(e.x, e.y, config.color, 1);
             }
-
-            // --- Update Bullets ---
-            for(let i = game.bullets.length - 1; i >= 0; i--) {
-                const b = game.bullets[i];
-                b.x += b.vx;
-                b.y += b.vy;
-                // Screen cleanup
-                if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
-                    game.bullets.splice(i, 1);
-                }
-            }
-
-            // --- Update Enemies ---
-            // Spawn logic
-            game.enemySpawnTimer -= dt;
-            if(game.enemySpawnTimer <= 0) {
-                spawnEnemy();
-                game.enemySpawnTimer = game.enemySpawnRate;
-                // Ramp up difficulty
-                if(game.enemySpawnRate > 200) game.enemySpawnRate -= 5;
-            }
-
-            for(let i = game.enemies.length - 1; i >= 0; i--) {
-                const e = game.enemies[i];
-                // Move towards player
-                const angle = Math.atan2(game.player.y - e.y, game.player.x - e.x);
-                e.x += Math.cos(angle) * e.speed;
-                e.y += Math.sin(angle) * e.speed;
-                e.angle += 0.05;
-
-                // Collision with Bullets
-                let hit = false;
-                for(let j = game.bullets.length - 1; j >= 0; j--) {
-                    const b = game.bullets[j];
-                    const dist = Math.hypot(e.x - b.x, e.y - b.y);
-                    if(dist < e.size + 5) {
-                        e.hp -= b.damage;
-                        game.bullets.splice(j, 1);
-                        createParticles(b.x, b.y, b.color, 3);
-                        hit = true;
-                        break;
-                    }
-                }
-
-                // Check death
-                if(e.hp <= 0) {
-                    AudioEngine.explode();
-                    createParticles(e.x, e.y, e.color, 15);
-                    game.score += (e.type === 0 ? 100 : 300);
-                    game.enemies.splice(i, 1);
-                    game.shake = 5;
-                    continue;
-                }
-
-                // Collision with Player
-                const pDist = Math.hypot(e.x - game.player.x, e.y - game.player.y);
-                if(pDist < e.size + game.player.radius) {
-                    gameOver();
-                }
-            }
-
-            // --- Update Particles ---
-            for(let i = game.particles.length - 1; i >= 0; i--) {
-                const p = game.particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life -= 0.05;
-                if(p.life <= 0) game.particles.splice(i, 1);
-            }
-
-            // --- Screen Shake Decay ---
-            if(game.shake > 0) game.shake *= 0.9;
-            if(game.shake < 0.5) game.shake = 0;
-
-            // Score UI
-            document.getElementById('score-display').innerText = `SCORE: ${game.score}`;
         }
+        
+        // Visual
+        particles.push({
+            type: 'beam',
+            sx: player.x, sy: player.y,
+            ex: endX, ey: endY,
+            life: 1,
+            color: config.color
+        });
+    }
+}
 
-        function draw() {
-            // Background & Shake
-            ctx.save();
-            const shakeX = (Math.random() - 0.5) * game.shake;
-            const shakeY = (Math.random() - 0.5) * game.shake;
-            ctx.translate(shakeX, shakeY);
+function damageEnemy(e, amt) {
+    e.hp -= amt;
+    // visual pop
+    e.radius = 20; 
+}
 
-            ctx.fillStyle = '#050505';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+function createParticles(x, y, color, count) {
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 5,
+            vy: (Math.random() - 0.5) * 5,
+            life: 20,
+            color: color,
+            type: 'spark'
+        });
+    }
+}
 
-            // Grid (Retro effect)
-            ctx.strokeStyle = '#001122';
-            ctx.lineWidth = 1;
+// --- RENDER ---
+function draw() {
+    // Clear
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Joysticks (Visual Feedback)
+    if (input.leftStick.active) {
+        drawJoy(input.leftStick.originX, input.leftStick.originY, input.leftStick.currX, input.leftStick.currY);
+    }
+    if (input.rightStick.active) {
+        drawJoy(input.rightStick.originX, input.rightStick.originY, input.rightStick.currX, input.rightStick.currY);
+    }
+
+    // Draw Player
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.rotate(player.angle);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(15, 0); // Nose
+    ctx.lineTo(-10, 10);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(-10, -10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Draw Enemies
+    enemies.forEach(e => {
+        // Reset radius pop effect
+        if(e.radius > 15) e.radius -= 1;
+        
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.strokeStyle = '#f55';
+        ctx.lineWidth = 3;
+        // Draw X shape
+        ctx.beginPath();
+        ctx.moveTo(-e.radius/2, -e.radius/2);
+        ctx.lineTo(e.radius/2, e.radius/2);
+        ctx.moveTo(e.radius/2, -e.radius/2);
+        ctx.lineTo(-e.radius/2, e.radius/2);
+        ctx.stroke();
+        ctx.restore();
+    });
+
+    // Draw Bullets
+    bullets.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Draw Particles / Effects
+    particles.forEach(p => {
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        
+        if (p.type === 'spark') {
+            ctx.globalAlpha = p.life / 20;
             ctx.beginPath();
-            for(let x=0; x<canvas.width; x+=50) { ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); }
-            for(let y=0; y<canvas.height; y+=50) { ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); }
+            ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
             ctx.stroke();
-
-            // Stars
-            ctx.fillStyle = '#fff';
-            game.stars.forEach(s => {
-                ctx.beginPath();
-                ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
-                ctx.fill();
-                s.y += s.speed;
-                if(s.y > canvas.height) s.y = 0;
-            });
-
-            if(game.state === 'playing') {
-                // Player
-                ctx.save();
-                ctx.translate(game.player.x, game.player.y);
-                ctx.rotate(game.player.angle);
-                
-                // Ship shape (Triangle)
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#0ff';
-                ctx.strokeStyle = '#0ff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(20, 0); // Nose
-                ctx.lineTo(-15, 15);
-                ctx.lineTo(-5, 0); // Engine indent
-                ctx.lineTo(-15, -15);
-                ctx.closePath();
-                ctx.stroke();
-                
-                // Weapon Indicator
-                const wColor = game.weapons[game.player.weaponIndex].color;
-                ctx.fillStyle = wColor;
-                ctx.beginPath();
-                ctx.arc(0, 0, 5, 0, Math.PI*2);
-                ctx.fill();
-
-                ctx.restore();
-
-                // Bullets
-                game.bullets.forEach(b => {
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = b.color;
-                    ctx.fillStyle = b.color;
-                    ctx.beginPath();
-                    ctx.arc(b.x, b.y, 3, 0, Math.PI*2);
-                    ctx.fill();
-                });
-
-                // Enemies
-                game.enemies.forEach(e => {
-                    ctx.save();
-                    ctx.translate(e.x, e.y);
-                    ctx.rotate(e.angle);
-                    
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = e.color;
-                    ctx.strokeStyle = e.color;
-                    ctx.lineWidth = 2;
-                    
-                    // Square shape with X inside (per sketch)
-                    const s = e.size;
-                    ctx.strokeRect(-s/2, -s/2, s, s);
-                    ctx.beginPath();
-                    ctx.moveTo(-s/2, -s/2); ctx.lineTo(s/2, s/2);
-                    ctx.moveTo(s/2, -s/2); ctx.lineTo(-s/2, s/2);
-                    ctx.stroke();
-
-                    ctx.restore();
-                });
-
-                // Particles
-                game.particles.forEach(p => {
-                    ctx.globalAlpha = p.life;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 2 + Math.random()*2, 0, Math.PI*2);
-                    ctx.fill();
-                    ctx.globalAlpha = 1.0;
-                });
-            }
-
-            ctx.restore();
+        } else if (p.type === 'lightning') {
+            ctx.globalAlpha = p.life / 5;
+            ctx.beginPath();
+            ctx.moveTo(p.sx, p.sy);
+            // Midpoint jitter
+            let midX = (p.sx + p.ex) / 2 + (Math.random()-0.5)*20;
+            let midY = (p.sy + p.ey) / 2 + (Math.random()-0.5)*20;
+            ctx.lineTo(midX, midY);
+            ctx.lineTo(p.ex, p.ey);
+            ctx.stroke();
+        } else if (p.type === 'beam') {
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(p.sx, p.sy);
+            ctx.lineTo(p.ex, p.ey);
+            ctx.stroke();
         }
+        ctx.globalAlpha = 1;
+    });
 
-        function loop(timestamp) {
-            const dt = timestamp - game.lastTime;
-            game.lastTime = timestamp;
+    // Game Over Overlay
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0,0,canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '40px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2);
+        ctx.font = '20px Arial';
+        ctx.fillText("Score: " + score, canvas.width/2, canvas.height/2 + 40);
+    }
+}
 
-            update(dt);
-            draw();
+function drawJoy(ox, oy, cx, cy) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    // Base
+    ctx.beginPath();
+    ctx.arc(ox, oy, 50, 0, Math.PI * 2);
+    ctx.stroke();
+    // Stick
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+    ctx.fill();
+}
 
-            requestAnimationFrame(loop);
-        }
+// --- MAIN LOOP ---
+function loop(timestamp) {
+    const dt = timestamp - lastTime;
+    lastTime = timestamp;
 
-        // --- GAME CONTROLS ---
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
 
-        function startGame() {
-            AudioEngine.init();
-            AudioEngine.startMusic();
-            document.getElementById('start-screen').style.display = 'none';
-            document.getElementById('ui-layer').style.display = 'block';
-            game.state = 'playing';
-            initGame();
-        }
+requestAnimationFrame(loop);
 
-        function gameOver() {
-            game.state = 'gameover';
-            if(navigator.vibrate) navigator.vibrate(200);
-            document.getElementById('game-over-screen').style.display = 'flex';
-            document.getElementById('final-score').innerText = game.score;
-        }
-
-        function resetGame() {
-            document.getElementById('game-over-screen').style.display = 'none';
-            game.state = 'playing';
-            initGame();
-        }
-
-        // Start Loop
-        requestAnimationFrame(loop);
-
-    </script>
+</script>
 </body>
 </html>
